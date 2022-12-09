@@ -1,0 +1,10 @@
+*.sln
+.vs
+.vscode
+.settings
+bin
+obj
+src/.vscode
+src/.vs
+src/bin
+src/obj
