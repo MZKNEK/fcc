@@ -6,15 +6,17 @@ namespace FCC
     {
         private readonly string _help  = new StringBuilder()
                 .AppendLine("-h     prints help")
+                .AppendLine("-d     prints names of subdir(only with r)")
                 .AppendLine("-r     enable recursive mode")
                 .AppendLine("-v     enable verbose mode")
-                .AppendLine("-p     path to folder")
+                .AppendLine("-p     path to dir")
                 .AppendLine("--out  path where save output, dir not file")
                 .ToString();
 
         internal Arguments()
         {
             PathToSave = null;
+            DirNames = false;
             Recurse = false;
             Verbose = false;
             Help = true;
@@ -24,6 +26,7 @@ namespace FCC
         internal bool Help;
         internal bool Recurse;
         internal bool Verbose;
+        internal bool DirNames;
         internal DirectoryInfo? Path;
         internal DirectoryInfo? PathToSave;
 
@@ -45,6 +48,11 @@ namespace FCC
                             Verbose = true;
                         }
                         break;
+                    case "-d":
+                        {
+                            DirNames = true;
+                        }
+                        break;
                     case "--out":
                         {
                             if (i + 1 >= args.Length)
@@ -61,6 +69,7 @@ namespace FCC
                         }
                         break;
                     case "-p":
+                    case "--path":
                         {
                             if (i + 1 >= args.Length)
                             {
@@ -86,6 +95,7 @@ namespace FCC
                                     if (arr[j] is '-') break;
                                     if (arr[j] is 'r') Recurse = true;
                                     if (arr[j] is 'v') Verbose = true;
+                                    if (arr[j] is 'd') DirNames = true;
                                     if (arr[j] is 'p') goto case "-p";
                                 }
                             }

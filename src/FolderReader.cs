@@ -6,13 +6,15 @@ namespace FCC
     {
         private readonly bool _verbose;
         private readonly bool _recurse;
+        private readonly bool _includeSubDirName;
         private readonly DirectoryInfo? _mainFolder;
 
-        internal FolderReader(bool v, bool r, DirectoryInfo? folder)
+        internal FolderReader(bool v, bool r, bool d, DirectoryInfo? folder)
         {
             _verbose = v;
             _recurse = r;
             _mainFolder = folder;
+            _includeSubDirName = d;
         }
 
         internal struct Stats
@@ -54,11 +56,16 @@ namespace FCC
                 string cName = "";
                 string lcName = "";
                 bool matched = false;
+                bool addDirName = d != _mainFolder && _includeSubDirName;
                 foreach (var f in d.GetFiles())
                 {
                     if (_verbose)
                     {
                         o.Stas.Files++;
+                        if (addDirName)
+                        {
+                            o.Result.Append($"{d.Name}/");
+                        }
                         o.Result.AppendLine(f.Name);
                         continue;
                     }
@@ -84,6 +91,10 @@ namespace FCC
                     {
                         if (ncName.Length < 20 || matched)
                         {
+                            if (addDirName)
+                            {
+                                o.Result.Append($"{d.Name}/");
+                            }
                             o.Result.AppendLine(cName + $" x{cCnt}");
                             o.Stas.Files += cCnt;
                             matched = false;
@@ -111,6 +122,10 @@ namespace FCC
 
                 if (lcName is not "")
                 {
+                    if (addDirName)
+                    {
+                        o.Result.Append($"{d.Name}/");
+                    }
                     o.Result.AppendLine(lcName + $" x{lcCnt}");
                     o.Stas.Files += lcCnt;
                     o.Stas.Groups++;
