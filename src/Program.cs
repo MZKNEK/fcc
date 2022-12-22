@@ -4,7 +4,7 @@ namespace FCC
 {
     public class FCC
     {
-        private static string _version = "0.0.2";
+        private static string _version = "0.0.3";
         private static StringBuilder _header = new StringBuilder()
             .AppendLine($"FCC # {_version}")
             .AppendLine("-----------------------------");
@@ -20,6 +20,12 @@ namespace FCC
             {
                 Console.WriteLine($"{_header.ToString()}{ex.Message}");
                 return  1;
+            }
+
+            if (arg.TestMode)
+            {
+                Console.WriteLine($"{_header.ToString()}ARGS: {string.Join(" ", args)}\nP: {arg}");
+                return 0;
             }
 
             if (arg.Help)
