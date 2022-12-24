@@ -1,24 +1,13 @@
+using System.Runtime.CompilerServices;
+using SCLIAP;
+
 namespace FCC
 {
     internal class Arguments
     {
-        private struct Param
-        {
-            public string Desc;
-            public bool HideInHelp;
-            public bool HasMoreParams;
-            public Action<Arguments, string> Method;
+        private static SimpleCLIArgsParser<Arguments>? _parser = null;
 
-            public Param(Action<Arguments, string> method, bool hmp, string desc, bool hide = false)
-            {
-                Desc = desc;
-                Method = method;
-                HideInHelp = hide;
-                HasMoreParams = hmp;
-            }
-        }
-
-        private static Action<Arguments, string> SetPathToDirectory = (a, s) =>
+        private static OptionInfo<Arguments>.OptionAction SetPathToDirectory = (a, s) =>
         {
             if (!Directory.Exists(s))
             {
@@ -28,7 +17,7 @@ namespace FCC
             a.Help = false;
         };
 
-        private static Action<Arguments, string> SetPathToOutDirectory = (a, s) =>
+        private static OptionInfo<Arguments>.OptionAction SetPathToOutDirectory = (a, s) =>
         {
             if (!Directory.Exists(s))
             {
@@ -37,46 +26,25 @@ namespace FCC
             a.PathToSave = new DirectoryInfo(s);
         };
 
-        private static Action<Arguments, string> SetVerboseToTrue = (a, s) =>
+        private static void SetTrue(Arguments args, string name)
         {
-            a.Verbose = true;
-            a.DirNames = true;
-        };
+            var arg = args.GetType().GetField(name);
+            if (arg is not null)
+                arg.SetValue(args, true);
+        }
 
-        private static Action<Arguments, string> SetHelpToTrue = (a, s) =>
+        private OptionInfo<Arguments>.OptionAction SetTrue(object a1, object? a2 = null,
+            [CallerArgumentExpression("a1")]string a1N = "", [CallerArgumentExpression("a2")]string a2N = "")
         {
-            a.Help = true;
-        };
+            return (a, s) =>
+            {
+                SetTrue(a, a1N);
+                if (a2 is not null)
+                    SetTrue(a, a2N);
+            };
+        }
 
-        private static Action<Arguments, string> SetDirNamesToTrue = (a, s) =>
-        {
-            a.DirNames = true;
-        };
-
-        private static Action<Arguments, string> SetRecurseToTrue = (a, s) =>
-        {
-            a.Recurse = true;
-        };
-
-        private static Action<Arguments, string> SetTestModeToTrue = (a, s) =>
-        {
-            a.TestMode = true;
-        };
-
-        private static readonly Dictionary<string, Param> _args = new Dictionary<string, Param>
-        {
-            {"-h",    new(SetHelpToTrue,           false, "prints help"                             )},
-            {"-d",    new(SetDirNamesToTrue,       false, "prints names of subdir(only with -r)"    )},
-            {"-r",    new(SetRecurseToTrue,        false, "enable recursive mode"                   )},
-            {"-v",    new(SetVerboseToTrue,        false, "enable verbose mode(also sets -d)"       )},
-            {"-t",    new(SetTestModeToTrue,       false, "enable test mode",                   true)},
-            {"-p",    new(SetPathToDirectory,      true,  "path to dir"                             )},
-            {"--out", new(SetPathToOutDirectory,   true,  "path where save output, dir not file"    )},
-        };
-
-        private static readonly string _help = string.Join("\n", _args.Where(x => !x.Value.HideInHelp).Select(x => $"{x.Key}\t{x.Value.Desc}"));
-
-        internal Arguments()
+        public Arguments()
         {
             PathToSave = null;
             DirNames = false;
@@ -85,70 +53,66 @@ namespace FCC
             Verbose = false;
             Help = true;
             Path = null;
+            Init();
         }
 
-        internal bool Help;
-        internal bool Recurse;
-        internal bool Verbose;
-        internal bool DirNames;
-        internal bool TestMode;
-        internal DirectoryInfo? Path;
-        internal DirectoryInfo? PathToSave;
-
-        internal string GetHelp() => _help;
-
-        internal void ParseArgs(string[] args)
+        private void Init()
         {
-            for (var i = 0; i < args.Length; i++)
+            if (_parser is null)
             {
-                var nextArg = (i+1 >= args.Length)
-                    ? string.Empty
-                    : args[i+1];
+                _parser = new();
+                _parser.AddDefaultHelpOptions(SetTrue(Help));
 
-                if (!_args.ContainsKey(args[i]))
-                {
-                    foreach (var o in ProcessCluster(args[i]))
-                    {
-                        var param = _args[o];
-                        _ = ExecuteParam(param, nextArg, ref i);
-                    }
-                }
-                else
-                {
-                    var param = _args[args[i]];
-                    _ = ExecuteParam(param, nextArg, ref i);
-                }
+                _parser.AddOption("-t",
+                    new(SetTrue(TestMode),
+                    "enable test mode",
+                    showInHelp: false));
+
+                _parser.AddOption("-d",
+                    new(SetTrue(DirNames),
+                    "prints names of subdir(only with -r)"));
+
+                _parser.AddOption("-r",
+                    new(SetTrue(Recurse),
+                    "enable recursive mode"));
+
+                _parser.AddOption("-v",
+                    new(SetTrue(Verbose, DirNames),
+                    "enable verbose mode"));
+
+                _parser.AddOption("-p",
+                    new(SetPathToDirectory,
+                    "path to dir",
+                    needNextArgument: true));
+
+                _parser.AddOption("--out",
+                    new(SetPathToOutDirectory,
+                    "path where save output, dir not file",
+                    needNextArgument: true));
             }
         }
 
-        private bool ExecuteParam(Param param, string nextArg, ref int index)
+        public bool Help;
+        public bool Recurse;
+        public bool Verbose;
+        public bool DirNames;
+        public bool TestMode;
+        public DirectoryInfo? Path;
+        public DirectoryInfo? PathToSave;
+
+        public string GetHelp() => _parser!.GetHelp();
+
+        public void ParseArgs(string[] args) => CopyValues(_parser!.Parse(args));
+
+        private void CopyValues(Arguments a)
         {
-            if (param.HasMoreParams && nextArg == string.Empty)
-                return false;
-
-            param.Method(this, nextArg);
-            if (param.HasMoreParams)
-                index++;
-
-            return true;
-        }
-
-        private IEnumerable<string> ProcessCluster(string arg)
-        {
-            if (arg.StartsWith("-"))
-            {
-                var arr = arg.ToCharArray();
-                for (var j = 1; j < arr.Length; j++)
-                {
-                    if (arr[j] is '-') break;
-
-                    foreach (var a in _args)
-                    {
-                        if (a.Key.Equals($"-{arr[j]}"))
-                            yield return a.Key;
-                    }
-                }
-            }
+            Help = a.Help;
+            Path = a.Path;
+            Recurse = a.Recurse;
+            Verbose = a.Verbose;
+            DirNames = a.DirNames;
+            TestMode = a.TestMode;
+            PathToSave = a.PathToSave;
         }
 
         public override string ToString()

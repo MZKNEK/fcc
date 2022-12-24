@@ -11,4 +11,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="SCLIAP" Version="0.0.1" />
+  </ItemGroup>
+
 </Project>
