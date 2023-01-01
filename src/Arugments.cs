@@ -24,6 +24,7 @@ namespace FCC
                 throw new Exception($"Directory '{s}' don't exist!");
             }
             a.PathToSave = new DirectoryInfo(s);
+            a.ColorOutput = false;
         };
 
         private static void SetTrue(Arguments args, string name)
@@ -46,6 +47,7 @@ namespace FCC
 
         public Arguments()
         {
+            ColorOutput = false;
             PathToSave = null;
             DirNames = false;
             TestMode = false;
@@ -63,32 +65,43 @@ namespace FCC
                 _parser = new();
                 _parser.AddDefaultHelpOptions(SetTrue(Help));
 
-                _parser.AddOption("-t",
+                _parser.AddOption(
                     new(SetTrue(TestMode),
                     "enable test mode",
-                    showInHelp: false));
+                    showInHelp: false,
+                    name: 't'));
 
-                _parser.AddOption("-d",
+                _parser.AddOption(
+                    new(SetTrue(ColorOutput),
+                    "enable colored output",
+                    name: 'c'));
+
+                _parser.AddOption(
                     new(SetTrue(DirNames),
-                    "prints names of subdir(only with -r)"));
+                    "prints names of subdir(only with -r)",
+                    name: 'd'));
 
-                _parser.AddOption("-r",
+                _parser.AddOption(
                     new(SetTrue(Recurse),
-                    "enable recursive mode"));
+                    "enable recursive mode",
+                    name: 'r'));
 
-                _parser.AddOption("-v",
+                _parser.AddOption(
                     new(SetTrue(Verbose, DirNames),
-                    "enable verbose mode"));
+                    "enable verbose mode",
+                    name: 'v'));
 
-                _parser.AddOption("-p",
+                _parser.AddOption(
                     new(SetPathToDirectory,
                     "path to dir",
-                    needNextArgument: true));
+                    needNextArgument: true,
+                    name: 'p'));
 
-                _parser.AddOption("--out",
+                _parser.AddOption(
                     new(SetPathToOutDirectory,
                     "path where save output, dir not file",
-                    needNextArgument: true));
+                    needNextArgument: true,
+                    longName: "out"));
             }
         }
 
@@ -97,6 +110,7 @@ namespace FCC
         public bool Verbose;
         public bool DirNames;
         public bool TestMode;
+        public bool ColorOutput;
         public DirectoryInfo? Path;
         public DirectoryInfo? PathToSave;
 
@@ -113,11 +127,21 @@ namespace FCC
             DirNames = a.DirNames;
             TestMode = a.TestMode;
             PathToSave = a.PathToSave;
+            ColorOutput = a.ColorOutput;
         }
 
         public override string ToString()
         {
-            return $"-h {Help} -d {DirNames} -r {Recurse} -v {Verbose} -t {TestMode} -p {Path?.FullName} --out {PathToSave?.FullName}";
+            return $"""
+                    -h {Help}
+                    -d {DirNames}
+                    -r {Recurse}
+                    -c {ColorOutput}
+                    -v {Verbose}
+                    -t {TestMode}
+                    -p {Path?.FullName}
+                    --out {PathToSave?.FullName}
+                    """;
         }
     }
 }

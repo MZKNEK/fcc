@@ -1,17 +1,20 @@
 ﻿using System.Text;
+using Pastel;
 
 namespace FCC
 {
     public class FCC
     {
-        private static string _version = "0.0.4";
+        private static string _version = "0.0.5";
         private static StringBuilder _header = new StringBuilder()
             .AppendLine($"FCC # {_version}")
             .AppendLine("-----------------------------");
 
         public static int Main(string[] args)
         {
+            ConsoleExtensions.Disable();
             var arg = new Arguments();
+
             try
             {
                 arg.ParseArgs(args);
@@ -32,6 +35,11 @@ namespace FCC
             {
                 Console.WriteLine($"{_header.ToString()}{arg.GetHelp()}");
                 return 0;
+            }
+
+            if (arg.ColorOutput)
+            {
+                ConsoleExtensions.Enable();
             }
 
             var frOut = new FolderReader.Output();
@@ -64,7 +72,6 @@ namespace FCC
             }
 
             Console.WriteLine($"{_header.ToString()}{frOut.Result.ToString()}");
-
             return 0;
         }
     }

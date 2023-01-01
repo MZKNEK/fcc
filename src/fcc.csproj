@@ -12,7 +12,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="SCLIAP" Version="0.0.1" />
+    <PackageReference Include="SCLIAP" Version="1.0.0" />
+    <PackageReference Include="Pastel" Version="4.1.0" />
   </ItemGroup>
 
 </Project>
