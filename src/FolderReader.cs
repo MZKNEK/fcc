@@ -34,11 +34,11 @@ namespace FCC
             public Output()
             {
                 Result = new StringBuilder();
-                Stas = new Stats();
+                Stats = new Stats();
             }
 
             public StringBuilder Result;
-            public Stats Stas;
+            public Stats Stats;
         }
 
         private IEnumerable<DirectoryInfo> GetDirectories()
@@ -56,6 +56,9 @@ namespace FCC
 
         private string Pastelize(string s, string f, string b = B_COLOR) => s.Pastel(f).PastelBg(b);
 
+        private string ProcessName(DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null)
+            => ProcessName(dir, fileName.ToString(), count);
+
         private string ProcessName(DirectoryInfo? dir, string fileName, int? count = null)
         {
             var builder = new StringBuilder().Append(Pastelize("'", Q_COLOR));
@@ -69,75 +72,79 @@ namespace FCC
             return builder.ToString();
         }
 
+        private ReadOnlySpan<char> GetCommonName(string name1, string name2, int min = 20)
+        {
+            var minLength = Math.Min(name1.Length, name2.Length);
+            for (int i = 1; i < minLength; i += 3)
+            {
+                if (minLength - i <= min)
+                    break;
+
+                var span1 = name1.AsSpan(0, minLength - i);
+                var span2 = name2.AsSpan(0, minLength - i);
+                if (span1.SequenceEqual(span2))
+                    return span1;
+            }
+            return ReadOnlySpan<char>.Empty;
+        }
+
         private void ProcessDir(DirectoryInfo dir, ref Output o)
         {
-            int cCnt = 0;
-            int lcCnt = 0;
-            string cName = "";
-            string lcName = "";
-            bool matched = false;
-            bool addDirName = dir != _mainFolder && _includeSubDirName;
+            var addDirName = dir != _mainFolder && _includeSubDirName;
+            var files = dir.GetFiles();
 
-            foreach (var file in dir.GetFiles())
+            o.Stats.Files += files.Length;
+            if (_verbose)
             {
-                if (_verbose)
-                {
-                    o.Stas.Files++;
-                    o.Result.AppendLine(ProcessName(addDirName ? dir : null, file.Name));
-                    continue;
-                }
-
-                if (cCnt == 0)
-                {
-                    cCnt++;
-                    lcCnt = cCnt;
-                    cName = file.Name;
-                    continue;
-                }
-
-                if (file.Name.Contains(cName))
-                {
-                    cCnt++;
-                    lcCnt = cCnt;
-                    continue;
-                }
-
-                var ncName = cName;
-                bool cont = false;
-                do
-                {
-                    if (ncName.Length < 20 || matched)
-                    {
-                        o.Result.AppendLine(ProcessName(addDirName ? dir : null, ncName, cCnt));
-                        o.Stas.Files += cCnt;
-                        matched = false;
-                        cName = file.Name;
-                        o.Stas.Groups++;
-                        cont = true;
-                        lcCnt = 1;
-                        cCnt = 1;
-                        break;
-                    }
-                    ncName = ncName.Truncate(ncName.Length - 2);
-                } while (!file.Name.Contains(ncName));
-
-                if (cont)
-                {
-                    continue;
-                }
-
-                cCnt++;
-                lcCnt = cCnt;
-                matched = true;
-                cName = ncName;
-                lcName = cName;
+                o.Result.AppendJoin('\n', files.Select(file => ProcessName(addDirName ? dir : null, file.Name)));
+                o.Result.AppendLine();
+                return;
             }
 
-            if (lcName is not "")
+            var nameToAdd = ReadOnlySpan<char>.Empty;
+            for (int i = 0, inGroupCnt = 0; i < files.Length; i++)
             {
-                o.Result.AppendLine(ProcessName(addDirName ? dir : null, lcName, lcCnt));
-                o.Stas.Files += lcCnt;
-                o.Stas.Groups++;
+                if (nameToAdd.IsEmpty && files.Length > i + 1)
+                    nameToAdd = GetCommonName(files[i].Name, files[i + 1].Name);
+
+                if (nameToAdd.IsEmpty)
+                {
+                    inGroupCnt = 0;
+                    o.Stats.Groups++;
+                    o.Result.AppendLine(ProcessName(addDirName ? dir : null, files[i].Name, 1));
+                    continue;
+                }
+
+                bool lastAlreadyAdded = false;
+                if (files[i].Name.AsSpan().StartsWith(nameToAdd))
+                {
+                    inGroupCnt++;
+                    if (i + 1 < files.Length)
+                        continue;
+
+                    lastAlreadyAdded = true;
+                }
+
+                if (!nameToAdd.IsEmpty)
+                {
+                    o.Stats.Groups++;
+                    o.Result.AppendLine(ProcessName(addDirName ? dir : null, nameToAdd, inGroupCnt));
+                    if (lastAlreadyAdded)
+                        continue;
+                }
+
+                inGroupCnt = 1;
+                nameToAdd = ReadOnlySpan<char>.Empty;
+
+                if (files.Length > i + 1)
+                    nameToAdd = GetCommonName(files[i].Name, files[i + 1].Name);
+
+                if (nameToAdd.IsEmpty)
+                {
+                    inGroupCnt = 0;
+                    o.Stats.Groups++;
+                    o.Result.AppendLine(ProcessName(addDirName ? dir : null, files[i].Name, 1));
+                }
             }
         }
 
@@ -150,7 +157,7 @@ namespace FCC
             if (!_verbose)
             {
                 o.Result.AppendLine("-----------------------------")
-                    .AppendLine($"TOTAL: {o.Stas.Files} FILES | {o.Stas.Groups} GROUPS");
+                    .AppendLine($"TOTAL: {o.Stats.Files} FILES | {o.Stats.Groups} GROUPS");
             }
 
             return o;
