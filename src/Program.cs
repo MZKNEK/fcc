@@ -5,7 +5,7 @@ namespace FCC
 {
     public class FCC
     {
-        private static string _version = "0.0.5";
+        private static string _version = "0.0.6";
         private static StringBuilder _header = new StringBuilder()
             .AppendLine($"FCC # {_version}")
             .AppendLine("-----------------------------");
@@ -59,11 +59,11 @@ namespace FCC
                 var savePath = arg.PathToSave.FullName + $"\\{dstr}.fcc";
 
                 var stats = new StringBuilder()
-                    .Append($"-----------------------------\nTOTAL: {frOut.Stas.Files} FILES");
+                    .Append($"-----------------------------\nTOTAL: {frOut.Stats.Files} FILES");
 
                 if (!arg.Verbose)
                 {
-                    stats.Append($" | {frOut.Stas.Groups} GROUPS");
+                    stats.Append($" | {frOut.Stats.Groups} GROUPS");
                 }
 
                 Console.WriteLine($"{_header.ToString()}Saved to '{savePath}'\n{stats.ToString()}");
