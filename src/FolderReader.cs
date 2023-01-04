@@ -77,13 +77,15 @@ namespace FCC
             var minLength = Math.Min(name1.Length, name2.Length);
             for (int i = 1; i < minLength; i += 3)
             {
-                if (minLength - i <= min)
+                var newLength = minLength - i;
+                if (newLength <= min)
                     break;
 
-                var span1 = name1.AsSpan(0, minLength - i);
-                var span2 = name2.AsSpan(0, minLength - i);
+                var span1 = name1.AsSpan(0, newLength);
+                var span2 = name2.AsSpan(0, newLength);
+
                 if (span1.SequenceEqual(span2))
-                    return span1;
+                    return name1.AsSpan(0, newLength - 2);
             }
             return ReadOnlySpan<char>.Empty;
         }
@@ -101,35 +103,29 @@ namespace FCC
                 return;
             }
 
+            GroupFilesByCommonNamePrefix(files, addDirName, ref o);
+        }
+
+        private void GroupFilesByCommonNamePrefix(ReadOnlySpan<FileInfo> files, bool addDirName, ref Output o)
+        {
             var nameToAdd = ReadOnlySpan<char>.Empty;
             for (int i = 0, inGroupCnt = 0; i < files.Length; i++)
             {
-                if (nameToAdd.IsEmpty && files.Length > i + 1)
-                    nameToAdd = GetCommonName(files[i].Name, files[i + 1].Name);
-
-                if (nameToAdd.IsEmpty)
-                {
-                    inGroupCnt = 0;
-                    o.Stats.Groups++;
-                    o.Result.AppendLine(ProcessName(addDirName ? dir : null, files[i].Name, 1));
-                    continue;
-                }
-
-                bool lastAlreadyAdded = false;
-                if (files[i].Name.AsSpan().StartsWith(nameToAdd))
-                {
-                    inGroupCnt++;
-                    if (i + 1 < files.Length)
-                        continue;
-
-                    lastAlreadyAdded = true;
-                }
-
                 if (!nameToAdd.IsEmpty)
                 {
+                    bool lastElement = false;
+                    if (files[i].Name.AsSpan().StartsWith(nameToAdd))
+                    {
+                        inGroupCnt++;
+                        if (i + 1 < files.Length)
+                            continue;
+
+                        lastElement = true;
+                    }
+
                     o.Stats.Groups++;
-                    o.Result.AppendLine(ProcessName(addDirName ? dir : null, nameToAdd, inGroupCnt));
-                    if (lastAlreadyAdded)
+                    o.Result.AppendLine(ProcessName(addDirName ? files[i].Directory : null, nameToAdd, inGroupCnt));
+                    if (lastElement)
                         continue;
                 }
 
@@ -143,7 +139,7 @@ namespace FCC
                 {
                     inGroupCnt = 0;
                     o.Stats.Groups++;
-                    o.Result.AppendLine(ProcessName(addDirName ? dir : null, files[i].Name, 1));
+                    o.Result.AppendLine(ProcessName(addDirName ? files[i].Directory : null, files[i].Name, 1));
                 }
             }
         }
