@@ -10,17 +10,22 @@ namespace FCC
         private const string F_COLOR = "#2AA198";
         private const string B_COLOR = "#002B36";
 
-        private readonly bool _verbose;
-        private readonly bool _recurse;
-        private readonly bool _includeSubDirName;
+        private readonly Configuration _flags;
         private readonly DirectoryInfo? _mainFolder;
 
-        internal FolderReader(bool v, bool r, bool d, DirectoryInfo? folder)
+        [Flags]
+        internal enum Configuration
         {
-            _verbose = v;
-            _recurse = r;
+            None        = 0b0000,
+            Verbose     = 0b0001,
+            Recursive   = 0b0010,
+            DirNames    = 0b0100,
+        }
+
+        internal FolderReader(DirectoryInfo? folder, Configuration flags = Configuration.None)
+        {
             _mainFolder = folder;
-            _includeSubDirName = d;
+            _flags = flags;
         }
 
         internal struct Stats
@@ -41,16 +46,24 @@ namespace FCC
             public Stats Stats;
         }
 
-        private IEnumerable<DirectoryInfo> GetDirectories()
+        private bool IsSystemDir(DirectoryInfo dir)
+            => !dir.Root.Name.Equals(dir.Name) && dir.Attributes.HasFlag(FileAttributes.System);
+
+        private IEnumerable<DirectoryInfo> GetDirectories(DirectoryInfo? dir)
         {
-            if (_mainFolder is not null)
+            if (dir is null)
+                yield break;
+
+            if (IsSystemDir(dir))
+                yield break;
+
+            yield return dir;
+
+            if (_flags.HasFlag(Configuration.Recursive))
             {
-                yield return _mainFolder;
-                if (_recurse)
-                {
-                    foreach (var dir in _mainFolder.GetDirectories())
-                        yield return dir;
-                }
+                foreach (var d in dir.GetDirectories())
+                    foreach (var rd in GetDirectories(d))
+                        yield return rd;
             }
         }
 
@@ -92,11 +105,11 @@ namespace FCC
 
         private void ProcessDir(DirectoryInfo dir, ref Output o)
         {
-            var addDirName = dir != _mainFolder && _includeSubDirName;
+            var addDirName = dir != _mainFolder && _flags.HasFlag(Configuration.DirNames);
             var files = dir.GetFiles();
 
             o.Stats.Files += files.Length;
-            if (_verbose)
+            if (_flags.HasFlag(Configuration.Verbose))
             {
                 o.Result.AppendJoin('\n', files.Select(file => ProcessName(addDirName ? dir : null, file.Name)));
                 o.Result.AppendLine();
@@ -147,10 +160,10 @@ namespace FCC
         internal Output Analyze()
         {
             var o = new Output();
-            foreach (var dir in GetDirectories())
+            foreach (var dir in GetDirectories(_mainFolder))
                 ProcessDir(dir, ref o);
 
-            if (!_verbose)
+            if (!_flags.HasFlag(Configuration.Verbose))
             {
                 o.Result.AppendLine("-----------------------------")
                     .AppendLine($"TOTAL: {o.Stats.Files} FILES | {o.Stats.Groups} GROUPS");

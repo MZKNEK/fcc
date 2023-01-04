@@ -45,7 +45,7 @@ namespace FCC
             var frOut = new FolderReader.Output();
             try
             {
-                frOut = new FolderReader(arg.Verbose, arg.Recurse, arg.DirNames, arg.Path).Analyze();
+                frOut = new FolderReader(arg.Path, GetFlags(arg)).Analyze();
             }
             catch(Exception)
             {
@@ -73,6 +73,18 @@ namespace FCC
 
             Console.WriteLine($"{_header.ToString()}{frOut.Result.ToString()}");
             return 0;
+        }
+
+        private static FolderReader.Configuration GetFlags(Arguments args)
+        {
+            var flags = FolderReader.Configuration.None;
+            if (args.Verbose)
+                flags |= FolderReader.Configuration.Verbose;
+            if (args.DirNames)
+                flags |= FolderReader.Configuration.DirNames;
+            if (args.Recurse)
+                flags |= FolderReader.Configuration.Recursive;
+            return flags;
         }
     }
 }
