@@ -5,7 +5,7 @@ namespace FCC
 {
     public class FCC
     {
-        private static string _version = "0.0.6";
+        private static string _version = "0.0.7";
         private static StringBuilder _header = new StringBuilder()
             .AppendLine($"FCC # {_version}")
             .AppendLine("-----------------------------");
@@ -23,12 +23,6 @@ namespace FCC
             {
                 Console.WriteLine($"{_header.ToString()}{ex.Message}");
                 return  1;
-            }
-
-            if (arg.TestMode)
-            {
-                Console.WriteLine($"{_header.ToString()}ARGS: {string.Join(" ", args)}\nP: {arg}");
-                return 0;
             }
 
             if (arg.Help)
@@ -76,15 +70,10 @@ namespace FCC
         }
 
         private static FolderReader.Configuration GetFlags(Arguments args)
-        {
-            var flags = FolderReader.Configuration.None;
-            if (args.Verbose)
-                flags |= FolderReader.Configuration.Verbose;
-            if (args.DirNames)
-                flags |= FolderReader.Configuration.DirNames;
-            if (args.Recurse)
-                flags |= FolderReader.Configuration.Recursive;
-            return flags;
-        }
+            => FolderReader.Configuration.None
+                .SetDirNames(args.DirNames)
+                .SetRecursive(args.Recurse)
+                .SetVerbose(args.Verbose)
+                .SetHidden(args.Hidden);
     }
 }

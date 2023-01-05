@@ -20,6 +20,7 @@ namespace FCC
             Verbose     = 0b0001,
             Recursive   = 0b0010,
             DirNames    = 0b0100,
+            Hidden      = 0b1000,
         }
 
         internal FolderReader(DirectoryInfo? folder, Configuration flags = Configuration.None)
@@ -46,15 +47,23 @@ namespace FCC
             public Stats Stats;
         }
 
-        private bool IsSystemDir(DirectoryInfo dir)
-            => !dir.Root.Name.Equals(dir.Name) && dir.Attributes.HasFlag(FileAttributes.System);
+        private bool IgnoreDir(DirectoryInfo dir)
+        {
+            var isRoot = dir.Root.Name.Equals(dir.Name);
+            var isSystem = dir.Attributes.HasFlag(FileAttributes.System);
+            var isHidden = dir.Attributes.HasFlag(FileAttributes.Hidden);
+            if (!isRoot && isSystem)
+                return true;
+
+            return !isRoot && isHidden && !_flags.HasFlag(Configuration.Hidden);
+        }
 
         private IEnumerable<DirectoryInfo> GetDirectories(DirectoryInfo? dir)
         {
             if (dir is null)
                 yield break;
 
-            if (IsSystemDir(dir))
+            if (IgnoreDir(dir))
                 yield break;
 
             yield return dir;

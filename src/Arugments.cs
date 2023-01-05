@@ -50,9 +50,9 @@ namespace FCC
             ColorOutput = false;
             PathToSave = null;
             DirNames = false;
-            TestMode = false;
             Recurse = false;
             Verbose = false;
+            Hidden = false;
             Help = true;
             Path = null;
             Init();
@@ -66,10 +66,9 @@ namespace FCC
                 _parser.AddDefaultHelpOptions(SetTrue(Help));
 
                 _parser.AddOption(
-                    new(SetTrue(TestMode),
-                    "enable test mode",
-                    showInHelp: false,
-                    name: 't'));
+                    new(SetTrue(Hidden),
+                    "include hidden directories",
+                    name: 'a'));
 
                 _parser.AddOption(
                     new(SetTrue(ColorOutput),
@@ -106,10 +105,10 @@ namespace FCC
         }
 
         public bool Help;
+        public bool Hidden;
         public bool Recurse;
         public bool Verbose;
         public bool DirNames;
-        public bool TestMode;
         public bool ColorOutput;
         public DirectoryInfo? Path;
         public DirectoryInfo? PathToSave;
@@ -122,10 +121,10 @@ namespace FCC
         {
             Help = a.Help;
             Path = a.Path;
+            Hidden = a.Hidden;
             Recurse = a.Recurse;
             Verbose = a.Verbose;
             DirNames = a.DirNames;
-            TestMode = a.TestMode;
             PathToSave = a.PathToSave;
             ColorOutput = a.ColorOutput;
         }
@@ -138,7 +137,7 @@ namespace FCC
                     -r {Recurse}
                     -c {ColorOutput}
                     -v {Verbose}
-                    -t {TestMode}
+                    -a {Hidden}
                     -p {Path?.FullName}
                     --out {PathToSave?.FullName}
                     """;
