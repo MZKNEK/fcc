@@ -31,16 +31,24 @@ internal class FolderReader
 
     internal struct Stats
     {
+        public Stats()
+        {
+            Files = 0;
+            Groups = 0;
+            Size = new();
+        }
+
         public int Files;
         public int Groups;
+        public Size Size;
     }
 
     internal struct Output
     {
         public Output()
         {
-            Result = new StringBuilder();
-            Stats = new Stats();
+            Result = new();
+            Stats = new();
         }
 
         public StringBuilder Result;
@@ -120,6 +128,7 @@ internal class FolderReader
         o.Stats.Files += files.Length;
         if (_flags.HasFlag(Configuration.Verbose))
         {
+            o.Stats.Size.AddBytes(files.Sum(x => x.Length));
             o.Result.AppendJoin('\n', files.Select(file => ProcessName(addDirName ? dir : null, file.Name)));
             o.Result.AppendLine();
             return;
@@ -133,6 +142,7 @@ internal class FolderReader
         var nameToAdd = ReadOnlySpan<char>.Empty;
         for (int i = 0, inGroupCnt = 0; i < files.Length; i++)
         {
+            o.Stats.Size.AddBytes(files[i].Length);
             if (!nameToAdd.IsEmpty)
             {
                 bool lastElement = false;
@@ -175,7 +185,7 @@ internal class FolderReader
         if (!_flags.HasFlag(Configuration.Verbose))
         {
             o.Result.AppendLine("-----------------------------")
-                .AppendLine($"TOTAL: {o.Stats.Files} FILES | {o.Stats.Groups} GROUPS");
+                .AppendLine($"TOTAL: {o.Stats.Files} FILES | {o.Stats.Groups} GROUPS | {o.Stats.Size}");
         }
 
         return o;

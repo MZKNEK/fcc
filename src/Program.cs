@@ -5,7 +5,7 @@ namespace FCC;
 
 public class FCC
 {
-    private static string _version = "0.0.7";
+    private static string _version = "0.0.8";
     private static StringBuilder _header = new StringBuilder()
         .AppendLine($"FCC # {_version}")
         .AppendLine("-----------------------------");
@@ -59,6 +59,8 @@ public class FCC
             {
                 stats.Append($" | {frOut.Stats.Groups} GROUPS");
             }
+
+            stats.Append($" | {frOut.Stats.Size}");
 
             Console.WriteLine($"{_header.ToString()}Saved to '{savePath}'\n{stats.ToString()}");
             File.WriteAllTextAsync(savePath, frOut.Result.ToString()).GetAwaiter().GetResult();
