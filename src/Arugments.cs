@@ -49,6 +49,7 @@ internal class Arguments
     {
         ColorOutput = false;
         PathToSave = null;
+        GroupSize = false;
         DirNames = false;
         Recurse = false;
         Verbose = false;
@@ -74,6 +75,11 @@ internal class Arguments
                 new(SetTrue(ColorOutput),
                 "enable colored output",
                 name: 'c'));
+
+            _parser.AddOption(
+                new(SetTrue(GroupSize),
+                "include group size in output",
+                name: 's'));
 
             _parser.AddOption(
                 new(SetTrue(DirNames),
@@ -109,6 +115,7 @@ internal class Arguments
     public bool Recurse;
     public bool Verbose;
     public bool DirNames;
+    public bool GroupSize;
     public bool ColorOutput;
     public DirectoryInfo? Path;
     public DirectoryInfo? PathToSave;
@@ -125,6 +132,7 @@ internal class Arguments
         Recurse = a.Recurse;
         Verbose = a.Verbose;
         DirNames = a.DirNames;
+        GroupSize = a.GroupSize;
         PathToSave = a.PathToSave;
         ColorOutput = a.ColorOutput;
     }
@@ -136,6 +144,7 @@ internal class Arguments
                 -d {DirNames}
                 -r {Recurse}
                 -c {ColorOutput}
+                -s {GroupSize}
                 -v {Verbose}
                 -a {Hidden}
                 -p {Path?.FullName}

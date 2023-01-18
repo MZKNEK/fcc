@@ -14,6 +14,9 @@ internal static class FolderReaderExtension
     internal static FolderReader.Configuration SetHidden(this FolderReader.Configuration e, bool value)
         => e.Set(FolderReader.Configuration.Hidden, value);
 
+    internal static FolderReader.Configuration SetGroupSize(this FolderReader.Configuration e, bool value)
+        => e.Set(FolderReader.Configuration.GroupSize, value);
+
     private static FolderReader.Configuration Set(this FolderReader.Configuration e,
         FolderReader.Configuration flag, bool value)
     {

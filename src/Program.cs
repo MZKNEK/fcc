@@ -73,6 +73,7 @@ public class FCC
 
     private static FolderReader.Configuration GetFlags(Arguments args)
         => FolderReader.Configuration.None
+            .SetGroupSize(args.GroupSize)
             .SetDirNames(args.DirNames)
             .SetRecursive(args.Recurse)
             .SetVerbose(args.Verbose)
