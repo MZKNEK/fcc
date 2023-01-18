@@ -100,7 +100,7 @@ internal class FolderReader
         if (count is not null)
             builder.Append(Pastelize($" x{count}", Q_COLOR));
         if (size is not null)
-            builder.Append(Pastelize($" [{size.ToString(Size.Kind.MiB, true)}]", D_COLOR));
+            builder.Append(Pastelize($" [{size}]", D_COLOR));
 
         return builder.ToString();
     }
@@ -126,18 +126,22 @@ internal class FolderReader
     private void ProcessDir(DirectoryInfo dir, ref Output o)
     {
         var addDirName = dir != _mainFolder && _flags.HasFlag(Configuration.DirNames);
+        var addSize = _flags.HasFlag(Configuration.GroupSize);
         var files = dir.GetFiles();
 
         o.Stats.Files += files.Length;
         if (_flags.HasFlag(Configuration.Verbose))
         {
-            o.Stats.Size.AddBytes(files.Sum(x => x.Length));
-            o.Result.AppendJoin('\n', files.Select(file => ProcessName(addDirName ? dir : null, file.Name)));
-            o.Result.AppendLine();
+            foreach (var file in files)
+            {
+                o.Stats.Size.AddBytes(file.Length);
+                o.Result.AppendLine(ProcessName(addDirName ? dir : null, file.Name, null,
+                    addSize ? Size.FromBytes(file.Length) : null));
+            }
             return;
         }
 
-        GroupFilesByCommonNamePrefix(files, addDirName, _flags.HasFlag(Configuration.GroupSize), ref o);
+        GroupFilesByCommonNamePrefix(files, addDirName, addSize, ref o);
     }
 
     private void GroupFilesByCommonNamePrefix(ReadOnlySpan<FileInfo> files, bool addDirName, bool addSize, ref Output o)

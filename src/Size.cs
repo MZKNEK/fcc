@@ -14,6 +14,11 @@ internal class Size
         PiB     = TiB * Kibi,
     }
 
+    public enum Format
+    {
+        Normal, Optimal, LowerOptimal, Smart
+    }
+
     public Size(Kind type = Kind.KiB)
     {
         Value = 0;
@@ -24,13 +29,13 @@ internal class Size
     public Kind Type { get; init; }
 
     public long ToBytes() => Value * (long)Type;
-    public void AddBytes(long bytes) => Value += bytes / (long)Type;
-    public void RemoveBytes(long bytes) => Value -= bytes / (long)Type;
+    public void AddBytes(long bytes) => this.Value += bytes / (long)this.Type;
+    public void RemoveBytes(long bytes) => this.Value -= bytes / (long)this.Type;
 
-    public override string ToString() => ToOptimalString();
-    private string ToOptimalString() => ToString(CalculateOptimalExtension());
+    public override string ToString() => ToSmartString();
+    public string ToString(Kind type) => $"{GetValueAs(type)} {type}";
 
-    private Kind CalculateOptimalExtension()
+    private Kind CalculateOptimal()
     {
         var bytes = ToBytes();
         foreach (long val in Enum.GetValues(typeof(Kind)))
@@ -41,17 +46,20 @@ internal class Size
         return Kind.PiB;
     }
 
-    public string ToString(Kind type, bool allowLower)
+    private Kind CalculateOptimalLower(out Kind optimal)
     {
-        var optimal = CalculateOptimalExtension();
-        return ToString(type > optimal ? optimal : type);
+        optimal = CalculateOptimal();
+        if (optimal > Kind.Bytes)
+            return (Kind)((long)optimal / Kibi);
+
+        return Kind.Bytes;
     }
 
-    public string ToString(Kind type)
+    public long GetValueAs(Kind type)
     {
-        var newType = (long)type;
-        var oldType = (long)Type;
-        var newValue = Value;
+        var oldType  = (long)this.Type;
+        var newType  = (long)type;
+        var newValue = this.Value;
 
         while (newType != oldType)
         {
@@ -66,13 +74,32 @@ internal class Size
                 newValue *= Kibi;
             }
         }
-        return $"{newValue} {type}";
+
+        return newValue;
     }
+
+    private string ToSmartString()
+    {
+        var lower = CalculateOptimalLower(out var optimal);
+        decimal value = GetValueAs(lower);
+        value /= Kibi;
+
+        return $"{value.ToString("F")} {optimal}";
+    }
+
+    public string ToString(Format format) => format switch
+    {
+        Format.LowerOptimal => ToString(CalculateOptimalLower(out _)),
+        Format.Optimal      => ToString(CalculateOptimal()),
+        Format.Normal       => ToString(this.Type),
+        Format.Smart        => ToString(),
+        _ => "Size[Format:Unknown]"
+    };
 
     private Size(Size size)
     {
-        Type = size.Type;
-        Value = size.Value;
+        this.Type = size.Type;
+        this.Value = size.Value;
     }
 
     public Size Copy() => new Size(this);
