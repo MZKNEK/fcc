@@ -100,7 +100,7 @@ internal class FolderReader
         if (count is not null)
             builder.Append(Pastelize($" x{count}", Q_COLOR));
         if (size is not null)
-            builder.Append(Pastelize($" [{size.ToString(Size.Kind.MiB, true)}]", F_COLOR));
+            builder.Append(Pastelize($" [{size.ToString(Size.Kind.MiB, true)}]", D_COLOR));
 
         return builder.ToString();
     }
