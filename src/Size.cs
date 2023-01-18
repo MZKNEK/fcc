@@ -2,19 +2,19 @@ namespace FCC;
 
 internal class Size
 {
-    private const long Kilo = 1024;
+    private const long Kibi = 1024;
 
     public enum Kind : long
     {
         Bytes   = 1,
-        KB      = Kilo,
-        MB      = KB * Kilo,
-        GB      = MB * Kilo,
-        TB      = GB * Kilo,
-        PB      = TB * Kilo,
+        KiB     = Kibi,
+        MiB     = KiB * Kibi,
+        GiB     = MiB * Kibi,
+        TiB     = GiB * Kibi,
+        PiB     = TiB * Kibi,
     }
 
-    public Size(Kind type = Kind.KB)
+    public Size(Kind type = Kind.KiB)
     {
         Value = 0;
         Type = type;
@@ -33,9 +33,9 @@ internal class Size
         foreach (long val in Enum.GetValues(typeof(Kind)))
         {
             if (val > bytes)
-                return ToString((Kind)(val / Kilo));
+                return ToString((Kind)(val / Kibi));
         }
-        return ToString(Kind.PB);
+        return ToString(Kind.PiB);
     }
 
     public string ToString(Kind type)
@@ -48,13 +48,13 @@ internal class Size
         {
             if (newType > oldType)
             {
-                oldType *= Kilo;
-                newValue /= Kilo;
+                oldType *= Kibi;
+                newValue /= Kibi;
             }
             else
             {
-                oldType /= Kilo;
-                newValue *= Kilo;
+                oldType /= Kibi;
+                newValue *= Kibi;
             }
         }
         return $"{newValue} {type}";
