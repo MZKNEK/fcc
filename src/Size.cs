@@ -25,6 +25,7 @@ internal class Size
 
     public long ToBytes() => Value * (long)Type;
     public void AddBytes(long bytes) => Value += bytes / (long)Type;
+    public void RemoveBytes(long bytes) => Value -= bytes / (long)Type;
     public override string ToString() => ToOptimalString();
 
     private string ToOptimalString()
@@ -60,9 +61,25 @@ internal class Size
         return $"{newValue} {type}";
     }
 
+    private Size(Size size)
+    {
+        Type = size.Type;
+        Value = size.Value;
+    }
+
+    public Size Copy() => new Size(this);
+
     public static Size operator +(Size s1, Size s2)
     {
-        s1.AddBytes(s2.Value * (long)s2.Type);
-        return s1;
+        var newSize = new Size(s1);
+        newSize.AddBytes(s2.Value * (long)s2.Type);
+        return newSize;
+    }
+
+    public static Size operator -(Size s1, Size s2)
+    {
+        var newSize = new Size(s1);
+        newSize.RemoveBytes(s2.Value * (long)s2.Type);
+        return newSize;
     }
 }
