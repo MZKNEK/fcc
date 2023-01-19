@@ -10,6 +10,7 @@ internal class FolderReader
     private const string F_COLOR = "#2AA198";
     private const string B_COLOR = "#002B36";
 
+    private readonly uint _minNameLength;
     private readonly Configuration _flags;
     private readonly DirectoryInfo? _mainFolder;
 
@@ -24,8 +25,9 @@ internal class FolderReader
         GroupSize   = 0b10000
     }
 
-    internal FolderReader(DirectoryInfo? folder, Configuration flags = Configuration.None)
+    internal FolderReader(DirectoryInfo? folder, Configuration flags = Configuration.None, uint minNameLen = 20)
     {
+        _minNameLength = minNameLen;
         _mainFolder = folder;
         _flags = flags;
     }
@@ -105,29 +107,40 @@ internal class FolderReader
         return builder.ToString();
     }
 
-    private ReadOnlySpan<char> GetCommonName(string name1, string name2, int min = 20)
+    private ReadOnlySpan<char> GetCommonName(string name1, string name2)
     {
         var minLength = Math.Min(name1.Length, name2.Length);
         for (int i = 1; i < minLength; i += 3)
         {
             var newLength = minLength - i;
-            if (newLength <= min)
+            if (newLength <= _minNameLength)
                 break;
 
             var span1 = name1.AsSpan(0, newLength);
             var span2 = name2.AsSpan(0, newLength);
 
             if (span1.SequenceEqual(span2))
-                return name1.AsSpan(0, newLength - 2);
+                return name1.AsSpan(0, newLength - 2).TrimEnd();
         }
         return ReadOnlySpan<char>.Empty;
+    }
+
+    private FileInfo[] GetFilesFromDir(DirectoryInfo dir)
+    {
+        if (_flags.HasFlag(Configuration.Hidden))
+            return dir.GetFiles();
+
+        return dir.GetFiles().Where(file => !file.Attributes.HasFlag(FileAttributes.Hidden)).ToArray();
     }
 
     private void ProcessDir(DirectoryInfo dir, ref Output o)
     {
         var addDirName = dir != _mainFolder && _flags.HasFlag(Configuration.DirNames);
         var addSize = _flags.HasFlag(Configuration.GroupSize);
-        var files = dir.GetFiles();
+        var files = GetFilesFromDir(dir);
+
+        if (files is null || files.Length < 1)
+            return;
 
         o.Stats.Files += files.Length;
         if (_flags.HasFlag(Configuration.Verbose))

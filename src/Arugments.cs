@@ -27,6 +27,14 @@ internal class Arguments
         a.ColorOutput = false;
     };
 
+    private static OptionInfo<Arguments>.OptionAction SetMinCharCnt = (a, s) =>
+    {
+        if (!uint.TryParse(s, out a.MinCharCnt))
+        {
+            throw new Exception($"Min: '{s}' isn't a positive number!");
+        }
+    };
+
     private static void SetTrue(Arguments args, string name)
     {
         var arg = args.GetType().GetField(name);
@@ -53,6 +61,7 @@ internal class Arguments
         DirNames = false;
         Recurse = false;
         Verbose = false;
+        MinCharCnt = 17;
         Hidden = false;
         Help = true;
         Path = null;
@@ -107,6 +116,12 @@ internal class Arguments
                 "path where save output, dir not file",
                 needNextArgument: true,
                 longName: "out"));
+
+            _parser.AddOption(
+                new(SetMinCharCnt,
+                "min length of short name",
+                needNextArgument: true,
+                longName: "min"));
         }
     }
 
@@ -116,6 +131,7 @@ internal class Arguments
     public bool Verbose;
     public bool DirNames;
     public bool GroupSize;
+    public uint MinCharCnt;
     public bool ColorOutput;
     public DirectoryInfo? Path;
     public DirectoryInfo? PathToSave;
@@ -133,6 +149,7 @@ internal class Arguments
         Verbose = a.Verbose;
         DirNames = a.DirNames;
         GroupSize = a.GroupSize;
+        MinCharCnt = a.MinCharCnt;
         PathToSave = a.PathToSave;
         ColorOutput = a.ColorOutput;
     }
@@ -148,6 +165,7 @@ internal class Arguments
                 -v {Verbose}
                 -a {Hidden}
                 -p {Path?.FullName}
+                --min {MinCharCnt}
                 --out {PathToSave?.FullName}
                 """;
     }
