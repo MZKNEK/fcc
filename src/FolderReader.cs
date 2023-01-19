@@ -41,7 +41,7 @@ internal class FolderReader
 
         public int Files;
         public int Groups;
-        public Size Size;
+        public BiSize Size;
     }
 
     internal struct Output
@@ -87,10 +87,10 @@ internal class FolderReader
 
     private string Pastelize(string s, string f, string b = B_COLOR) => s.Pastel(f).PastelBg(b);
 
-    private string ProcessName(DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null, Size? size = null)
+    private string ProcessName(DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null, BiSize? size = null)
         => ProcessName(dir, fileName.ToString(), count, size);
 
-    private string ProcessName(DirectoryInfo? dir, string fileName, int? count = null, Size? size = null)
+    private string ProcessName(DirectoryInfo? dir, string fileName, int? count = null, BiSize? size = null)
     {
         var builder = new StringBuilder().Append(Pastelize("'", Q_COLOR));
         if (dir is not null)
@@ -136,7 +136,7 @@ internal class FolderReader
             {
                 o.Stats.Size.AddBytes(file.Length);
                 o.Result.AppendLine(ProcessName(addDirName ? dir : null, file.Name, null,
-                    addSize ? Size.FromBytes(file.Length) : null));
+                    addSize ? BiSize.FromBytes(file.Length) : null));
             }
             return;
         }
@@ -147,7 +147,7 @@ internal class FolderReader
     private void GroupFilesByCommonNamePrefix(ReadOnlySpan<FileInfo> files, bool addDirName, bool addSize, ref Output o)
     {
         var nameToAdd = ReadOnlySpan<char>.Empty;
-        var size = new Size();
+        var size = new BiSize();
 
         for (int i = 0, inGroupCnt = 0; i < files.Length; i++)
         {
@@ -174,7 +174,7 @@ internal class FolderReader
             }
 
             inGroupCnt = 1;
-            size = Size.FromBytes(files[i].Length);
+            size = BiSize.FromBytes(files[i].Length);
             nameToAdd = ReadOnlySpan<char>.Empty;
 
             if (files.Length > i + 1)

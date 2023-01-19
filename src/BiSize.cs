@@ -1,6 +1,6 @@
 namespace FCC;
 
-internal class Size
+internal class BiSize
 {
     private const long Kibi = 1024;
 
@@ -19,7 +19,7 @@ internal class Size
         Normal, Optimal, LowerOptimal, Smart
     }
 
-    public Size(Kind type = Kind.KiB)
+    public BiSize(Kind type = Kind.KiB)
     {
         Value = 0;
         Type = type;
@@ -96,31 +96,31 @@ internal class Size
         _ => "Size[Format:Unknown]"
     };
 
-    private Size(Size size)
+    private BiSize(BiSize size)
     {
         this.Type = size.Type;
         this.Value = size.Value;
     }
 
-    public Size Copy() => new Size(this);
+    public BiSize Copy() => new BiSize(this);
 
-    public static Size FromBytes(long bytes, Kind type = Kind.KiB)
+    public static BiSize FromBytes(long bytes, Kind type = Kind.KiB)
     {
-        var size = new Size(type);
+        var size = new BiSize(type);
         size.AddBytes(bytes);
         return size;
     }
 
-    public static Size operator +(Size s1, Size s2)
+    public static BiSize operator +(BiSize s1, BiSize s2)
     {
-        var newSize = new Size(s1);
+        var newSize = new BiSize(s1);
         newSize.AddBytes(s2.Value * (long)s2.Type);
         return newSize;
     }
 
-    public static Size operator -(Size s1, Size s2)
+    public static BiSize operator -(BiSize s1, BiSize s2)
     {
-        var newSize = new Size(s1);
+        var newSize = new BiSize(s1);
         newSize.RemoveBytes(s2.Value * (long)s2.Type);
         return newSize;
     }
