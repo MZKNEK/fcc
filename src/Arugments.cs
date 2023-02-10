@@ -63,6 +63,7 @@ internal class Arguments
         Verbose = false;
         MinCharCnt = 17;
         Hidden = false;
+        Random = false;
         Help = true;
         Path = null;
         Init();
@@ -101,6 +102,11 @@ internal class Arguments
                 name: 'r'));
 
             _parser.AddOption(
+                new(SetTrue(Random),
+                "get one random entry",
+                longName: "rand"));
+
+            _parser.AddOption(
                 new(SetTrue(Verbose, DirNames),
                 "enable verbose mode",
                 name: 'v'));
@@ -127,6 +133,7 @@ internal class Arguments
 
     public bool Help;
     public bool Hidden;
+    public bool Random;
     public bool Recurse;
     public bool Verbose;
     public bool DirNames;
@@ -145,6 +152,7 @@ internal class Arguments
         Help = a.Help;
         Path = a.Path;
         Hidden = a.Hidden;
+        Random = a.Random;
         Recurse = a.Recurse;
         Verbose = a.Verbose;
         DirNames = a.DirNames;
@@ -165,6 +173,7 @@ internal class Arguments
                 -v {Verbose}
                 -a {Hidden}
                 -p {Path?.FullName}
+                --rand {Random}
                 --min {MinCharCnt}
                 --out {PathToSave?.FullName}
                 """;

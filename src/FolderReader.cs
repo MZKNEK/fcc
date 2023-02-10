@@ -17,12 +17,13 @@ internal class FolderReader
     [Flags]
     internal enum Configuration
     {
-        None        = 0b00000,
-        Verbose     = 0b00001,
-        Recursive   = 0b00010,
-        DirNames    = 0b00100,
-        Hidden      = 0b01000,
-        GroupSize   = 0b10000
+        None        = 0b000000,
+        Verbose     = 0b000001,
+        Recursive   = 0b000010,
+        DirNames    = 0b000100,
+        Hidden      = 0b001000,
+        GroupSize   = 0b010000,
+        RandomEntry = 0b100000
     }
 
     internal FolderReader(DirectoryInfo? folder, Configuration flags = Configuration.None, uint minNameLen = 20)
@@ -208,6 +209,16 @@ internal class FolderReader
         var o = new Output();
         foreach (var dir in GetDirectories(_mainFolder))
             ProcessDir(dir, ref o);
+
+        if (_flags.HasFlag(Configuration.RandomEntry))
+        {
+            var lines = o.Result.ToString().Split('\n');
+            if (lines?.Length > 1)
+            {
+                o.Result.Clear();
+                o.Result.AppendLine(lines[Random.Shared.Next(lines.Length)]);
+            }
+        }
 
         if (!_flags.HasFlag(Configuration.Verbose))
         {

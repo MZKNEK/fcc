@@ -17,6 +17,9 @@ internal static class FolderReaderExtension
     internal static FolderReader.Configuration SetGroupSize(this FolderReader.Configuration e, bool value)
         => e.Set(FolderReader.Configuration.GroupSize, value);
 
+    internal static FolderReader.Configuration SetRandom(this FolderReader.Configuration e, bool value)
+        => e.Set(FolderReader.Configuration.RandomEntry, value);
+
     private static FolderReader.Configuration Set(this FolderReader.Configuration e,
         FolderReader.Configuration flag, bool value)
     {
