@@ -14,11 +14,6 @@ internal class BiSize
         PiB     = TiB * Kibi,
     }
 
-    public enum Format
-    {
-        Normal, Optimal, LowerOptimal, Smart
-    }
-
     public BiSize(Kind type = Kind.KiB)
     {
         Value = 0;
@@ -87,15 +82,6 @@ internal class BiSize
         return $"{value.ToString("F")} {optimal}";
     }
 
-    public string ToString(Format format) => format switch
-    {
-        Format.LowerOptimal => ToString(CalculateOptimalLower(out _)),
-        Format.Optimal      => ToString(CalculateOptimal()),
-        Format.Normal       => ToString(this.Type),
-        Format.Smart        => ToString(),
-        _ => "Size[Format:Unknown]"
-    };
-
     private BiSize(BiSize size)
     {
         this.Type = size.Type;
@@ -114,14 +100,14 @@ internal class BiSize
     public static BiSize operator +(BiSize s1, BiSize s2)
     {
         var newSize = new BiSize(s1);
-        newSize.AddBytes(s2.Value * (long)s2.Type);
+        newSize.AddBytes(s2.ToBytes());
         return newSize;
     }
 
     public static BiSize operator -(BiSize s1, BiSize s2)
     {
         var newSize = new BiSize(s1);
-        newSize.RemoveBytes(s2.Value * (long)s2.Type);
+        newSize.RemoveBytes(s2.ToBytes());
         return newSize;
     }
 }
