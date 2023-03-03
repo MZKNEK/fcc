@@ -7,17 +7,16 @@ internal class Arguments
 {
     private static SimpleCLIArgsParser<Arguments>? _parser = null;
 
-    private static OptionInfo<Arguments>.OptionAction SetPathToDirectory = (a, s) =>
+    private static Action<Arguments, string> SetPathToDirectory = (a, s) =>
     {
         if (!Directory.Exists(s))
         {
             throw new Exception($"Directory '{s}' don't exist!");
         }
         a.Path = new DirectoryInfo(s);
-        a.Help = false;
     };
 
-    private static OptionInfo<Arguments>.OptionAction SetPathToOutDirectory = (a, s) =>
+    private static Action<Arguments, string> SetPathToOutDirectory = (a, s) =>
     {
         if (!Directory.Exists(s))
         {
@@ -27,7 +26,7 @@ internal class Arguments
         a.ColorOutput = false;
     };
 
-    private static OptionInfo<Arguments>.OptionAction SetMinCharCnt = (a, s) =>
+    private static Action<Arguments, string> SetMinCharCnt = (a, s) =>
     {
         if (!uint.TryParse(s, out a.MinCharCnt))
         {
@@ -42,8 +41,8 @@ internal class Arguments
             arg.SetValue(args, true);
     }
 
-    private OptionInfo<Arguments>.OptionAction SetTrue(object a1, object? a2 = null,
-        [CallerArgumentExpression("a1")] string a1N = "", [CallerArgumentExpression("a2")] string a2N = "")
+    private Action<Arguments, string> SetTrue(object a1, object? a2 = null,
+        [CallerArgumentExpression("a1")] string a1N = "",[CallerArgumentExpression("a2")] string a2N = "")
     {
         return (a, s) =>
         {
@@ -55,6 +54,7 @@ internal class Arguments
 
     public Arguments()
     {
+        Path = new DirectoryInfo(".");
         ColorOutput = false;
         PathToSave = null;
         GroupSize = false;
@@ -64,8 +64,7 @@ internal class Arguments
         MinCharCnt = 17;
         Hidden = false;
         Random = false;
-        Help = true;
-        Path = null;
+        Help = false;
         Init();
     }
 
