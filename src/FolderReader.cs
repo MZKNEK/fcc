@@ -17,13 +17,14 @@ internal class FolderReader
     [Flags]
     internal enum Configuration
     {
-        None        = 0b000000,
-        Verbose     = 0b000001,
-        Recursive   = 0b000010,
-        DirNames    = 0b000100,
-        Hidden      = 0b001000,
-        GroupSize   = 0b010000,
-        RandomEntry = 0b100000
+        None        = 0b0000000,
+        Verbose     = 0b0000001,
+        Recursive   = 0b0000010,
+        DirNames    = 0b0000100,
+        Hidden      = 0b0001000,
+        GroupSize   = 0b0010000,
+        RandomEntry = 0b0100000,
+        AvgSize     = 0b1000000
     }
 
     internal FolderReader(DirectoryInfo? folder, Configuration flags = Configuration.None, uint minNameLen = 20)
@@ -90,10 +91,11 @@ internal class FolderReader
 
     private string Pastelize(string s, string f, string b = B_COLOR) => s.Pastel(f).PastelBg(b);
 
-    private string ProcessName(DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null, BiSize? size = null)
-        => ProcessName(dir, fileName.ToString(), count, size);
+    private string ProcessName(DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null,
+        BiSize? size = null, bool avgSize = false) => ProcessName(dir, fileName.ToString(), count, size, avgSize);
 
-    private string ProcessName(DirectoryInfo? dir, string fileName, int? count = null, BiSize? size = null)
+    private string ProcessName(DirectoryInfo? dir, string fileName, int? count = null,
+        BiSize? size = null, bool avgSize = false)
     {
         var builder = new StringBuilder().Append(Pastelize("'", Q_COLOR));
         if (dir is not null)
@@ -103,7 +105,7 @@ internal class FolderReader
         if (count is not null)
             builder.Append(Pastelize($" x{count}", Q_COLOR));
         if (size is not null)
-            builder.Append(Pastelize($" [{size}]", D_COLOR));
+            builder.Append(Pastelize($" [{(avgSize ? (size / count) : size)}]", D_COLOR));
 
         return builder.ToString();
     }
@@ -136,8 +138,9 @@ internal class FolderReader
 
     private void ProcessDir(DirectoryInfo dir, ref Output o)
     {
-        var addDirName = dir != _mainFolder && _flags.HasFlag(Configuration.DirNames);
         var addSize = _flags.HasFlag(Configuration.GroupSize);
+        var avgSize = addSize && _flags.HasFlag(Configuration.AvgSize);
+        var addDirName = dir != _mainFolder && _flags.HasFlag(Configuration.DirNames);
         var files = GetFilesFromDir(dir);
 
         if (files is null || files.Length < 1)
@@ -155,10 +158,11 @@ internal class FolderReader
             return;
         }
 
-        GroupFilesByCommonNamePrefix(files, addDirName, addSize, ref o);
+        GroupFilesByCommonNamePrefix(files, addDirName, addSize, avgSize, ref o);
     }
 
-    private void GroupFilesByCommonNamePrefix(ReadOnlySpan<FileInfo> files, bool addDirName, bool addSize, ref Output o)
+    private void GroupFilesByCommonNamePrefix(ReadOnlySpan<FileInfo> files, bool addDirName,
+        bool addSize, bool avgSize, ref Output o)
     {
         var nameToAdd = ReadOnlySpan<char>.Empty;
         var size = new BiSize();
@@ -181,7 +185,7 @@ internal class FolderReader
 
                 o.Stats.Groups++;
                 o.Result.AppendLine(ProcessName(addDirName ? files[i].Directory : null,
-                    nameToAdd, inGroupCnt, addSize ? size : null));
+                    nameToAdd, inGroupCnt, addSize ? size : null, avgSize));
 
                 if (lastElement)
                     continue;
@@ -199,7 +203,7 @@ internal class FolderReader
                 inGroupCnt = 0;
                 o.Stats.Groups++;
                 o.Result.AppendLine(ProcessName(addDirName ? files[i].Directory : null,
-                    files[i].Name, 1, addSize ? size : null));
+                    files[i].Name, 1, addSize ? size : null, avgSize));
             }
         }
     }

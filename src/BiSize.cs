@@ -110,4 +110,12 @@ internal class BiSize
         newSize.RemoveBytes(s2.ToBytes());
         return newSize;
     }
+
+    public static BiSize operator /(BiSize s, long? num)
+    {
+        if (num.HasValue)
+            return BiSize.FromBytes(s.ToBytes() / num.Value);
+
+        return new BiSize(s);
+    }
 }

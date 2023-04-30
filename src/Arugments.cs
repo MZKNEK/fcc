@@ -55,13 +55,14 @@ internal class Arguments
     public Arguments()
     {
         Path = new DirectoryInfo(".");
+        GroupSizeAvg = false;
         ColorOutput = false;
         PathToSave = null;
         GroupSize = false;
         DirNames = false;
         Recurse = false;
         Verbose = false;
-        MinCharCnt = 17;
+        MinCharCnt = 20;
         Hidden = false;
         Random = false;
         Help = false;
@@ -91,8 +92,13 @@ internal class Arguments
                 name: 's'));
 
             _parser.AddOption(
+                new(SetTrue(GroupSizeAvg),
+                "calculate avg file size in group (only with -s)",
+                name: 'g'));
+
+            _parser.AddOption(
                 new(SetTrue(DirNames),
-                "prints names of subdir(only with -r)",
+                "prints names of subdir (only with -r)",
                 name: 'd'));
 
             _parser.AddOption(
@@ -124,7 +130,7 @@ internal class Arguments
 
             _parser.AddOption(
                 new(SetMinCharCnt,
-                "min length of short name",
+                "min length of short name (def. 20)",
                 needNextArgument: true,
                 longName: "min"));
         }
@@ -139,6 +145,7 @@ internal class Arguments
     public bool GroupSize;
     public uint MinCharCnt;
     public bool ColorOutput;
+    public bool GroupSizeAvg;
     public DirectoryInfo? Path;
     public DirectoryInfo? PathToSave;
 
@@ -159,6 +166,7 @@ internal class Arguments
         MinCharCnt = a.MinCharCnt;
         PathToSave = a.PathToSave;
         ColorOutput = a.ColorOutput;
+        GroupSizeAvg = a.GroupSizeAvg;
     }
 
     public override string ToString()
@@ -171,6 +179,7 @@ internal class Arguments
                 -s {GroupSize}
                 -v {Verbose}
                 -a {Hidden}
+                -g {GroupSizeAvg}
                 -p {Path?.FullName}
                 --rand {Random}
                 --min {MinCharCnt}

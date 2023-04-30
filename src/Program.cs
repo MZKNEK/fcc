@@ -5,7 +5,7 @@ namespace FCC;
 
 public class FCC
 {
-    private static string _version = "1.0.3";
+    private static string _version = "1.0.4";
     private static StringBuilder _header = new StringBuilder()
         .AppendLine($"FCC # {_version}")
         .AppendLine("-----------------------------");
@@ -76,6 +76,7 @@ public class FCC
             .SetGroupSize(args.GroupSize)
             .SetDirNames(args.DirNames)
             .SetRecursive(args.Recurse)
+            .SetAvg(args.GroupSizeAvg)
             .SetVerbose(args.Verbose)
             .SetRandom(args.Random)
             .SetHidden(args.Hidden);
