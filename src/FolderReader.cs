@@ -14,6 +14,8 @@ internal class FolderReader
     private readonly Configuration _flags;
     private readonly DirectoryInfo? _mainFolder;
 
+    private readonly uint? _maxCountInGroup;
+
     [Flags]
     internal enum Configuration
     {
@@ -27,8 +29,10 @@ internal class FolderReader
         AvgSize     = 0b1000000
     }
 
-    internal FolderReader(DirectoryInfo? folder, Configuration flags = Configuration.None, uint minNameLen = 20)
+    internal FolderReader(DirectoryInfo? folder, Configuration flags = Configuration.None,
+        uint minNameLen = 20, uint? maxCountInGroup = null)
     {
+        _maxCountInGroup = maxCountInGroup;
         _minNameLength = minNameLen;
         _mainFolder = folder;
         _flags = flags;
@@ -91,13 +95,13 @@ internal class FolderReader
 
     private string Pastelize(string s, string f, string b = B_COLOR) => s.Pastel(f).PastelBg(b);
 
-    private string ProcessName(DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null,
-        BiSize? size = null, bool avgSize = false) => ProcessName(dir, fileName.ToString(), count, size, avgSize);
+    private void ProcessAndAddName(ref StringBuilder builder, DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null,
+        BiSize? size = null, bool avgSize = false) => ProcessAndAddName(ref builder, dir, fileName.ToString(), count, size, avgSize);
 
-    private string ProcessName(DirectoryInfo? dir, string fileName, int? count = null,
+    private void ProcessAndAddName(ref StringBuilder builder, DirectoryInfo? dir, string fileName, int? count = null,
         BiSize? size = null, bool avgSize = false)
     {
-        var builder = new StringBuilder().Append(Pastelize("'", Q_COLOR));
+        builder.Append(Pastelize("'", Q_COLOR));
         if (dir is not null)
             builder.Append(Pastelize(dir.Name, D_COLOR)).Append(Pastelize("/", Q_COLOR));
 
@@ -107,7 +111,7 @@ internal class FolderReader
         if (size is not null)
             builder.Append(Pastelize($" [{(avgSize ? (size / count) : size)}]", D_COLOR));
 
-        return builder.ToString();
+        builder.AppendLine();
     }
 
     private ReadOnlySpan<char> GetCommonName(string name1, string name2)
@@ -146,14 +150,14 @@ internal class FolderReader
         if (files is null || files.Length < 1)
             return;
 
-        o.Stats.Files += files.Length;
         if (_flags.HasFlag(Configuration.Verbose))
         {
+            o.Stats.Files += files.Length;
             foreach (var file in files)
             {
                 o.Stats.Size.AddBytes(file.Length);
-                o.Result.AppendLine(ProcessName(addDirName ? dir : null, file.Name, null,
-                    addSize ? BiSize.FromBytes(file.Length) : null));
+                ProcessAndAddName(ref o.Result, addDirName ? dir : null, file.Name, null,
+                    addSize ? BiSize.FromBytes(file.Length) : null);
             }
             return;
         }
@@ -169,7 +173,6 @@ internal class FolderReader
 
         for (int i = 0, inGroupCnt = 0; i < files.Length; i++)
         {
-            o.Stats.Size.AddBytes(files[i].Length);
             if (!nameToAdd.IsEmpty)
             {
                 bool lastElement = false;
@@ -183,9 +186,7 @@ internal class FolderReader
                     lastElement = true;
                 }
 
-                o.Stats.Groups++;
-                o.Result.AppendLine(ProcessName(addDirName ? files[i].Directory : null,
-                    nameToAdd, inGroupCnt, addSize ? size : null, avgSize));
+                AddEntry(inGroupCnt, avgSize, nameToAdd, addDirName ? files[i].Directory : null, addSize ? size : null, ref o);
 
                 if (lastElement)
                     continue;
@@ -201,11 +202,30 @@ internal class FolderReader
             if (nameToAdd.IsEmpty)
             {
                 inGroupCnt = 0;
-                o.Stats.Groups++;
-                o.Result.AppendLine(ProcessName(addDirName ? files[i].Directory : null,
-                    files[i].Name, 1, addSize ? size : null, avgSize));
+                AddEntry(1, avgSize, files[i].Name, addDirName ? files[i].Directory : null, addSize ? size : null, ref o);
             }
         }
+    }
+
+    private void AddEntry(int inGroupCnt, bool avgSize, ReadOnlySpan<char> nameToAdd, DirectoryInfo? dir, BiSize? size, ref Output o)
+    {
+        if (ShouldAddGroup(inGroupCnt))
+        {
+            o.Stats.Groups++;
+            o.Stats.Files += inGroupCnt;
+            ProcessAndAddName(ref o.Result, dir, nameToAdd, inGroupCnt, size, avgSize);
+
+            if (size is not null)
+                o.Stats.Size.AddBytes(size.ToBytes());
+        }
+    }
+
+    private bool ShouldAddGroup(int inGroupCnt)
+    {
+        if (_maxCountInGroup is null)
+            return true;
+
+        return _maxCountInGroup >= inGroupCnt;
     }
 
     internal Output Analyze()

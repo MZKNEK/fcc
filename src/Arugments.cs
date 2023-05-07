@@ -34,6 +34,15 @@ internal class Arguments
         }
     };
 
+    private static Action<Arguments, string> SetMaxCntInGroup = (a, s) =>
+    {
+        if (!uint.TryParse(s, out var max))
+        {
+            throw new Exception($"Less: '{s}' isn't a positive number!");
+        }
+        a.MaxCntInGroup = max;
+    };
+
     private static void SetTrue(Arguments args, string name)
     {
         var arg = args.GetType().GetField(name);
@@ -56,6 +65,8 @@ internal class Arguments
     {
         Path = new DirectoryInfo(".");
         GroupSizeAvg = false;
+        MaxCntInGroup = null;
+        ShowVersion = false;
         ColorOutput = false;
         PathToSave = null;
         GroupSize = false;
@@ -133,6 +144,17 @@ internal class Arguments
                 "min length of short name (def. 20)",
                 needNextArgument: true,
                 longName: "min"));
+
+            _parser.AddOption(
+                new(SetMaxCntInGroup,
+                "max allowed count in group",
+                needNextArgument: true,
+                longName: "less"));
+
+            _parser.AddOption(
+                new(SetTrue(ShowVersion),
+                "prints program version",
+                longName: "version"));
         }
     }
 
@@ -144,8 +166,10 @@ internal class Arguments
     public bool DirNames;
     public bool GroupSize;
     public uint MinCharCnt;
+    public bool ShowVersion;
     public bool ColorOutput;
     public bool GroupSizeAvg;
+    public uint? MaxCntInGroup;
     public DirectoryInfo? Path;
     public DirectoryInfo? PathToSave;
 
@@ -165,8 +189,10 @@ internal class Arguments
         GroupSize = a.GroupSize;
         MinCharCnt = a.MinCharCnt;
         PathToSave = a.PathToSave;
+        ShowVersion = a.ShowVersion;
         ColorOutput = a.ColorOutput;
         GroupSizeAvg = a.GroupSizeAvg;
+        MaxCntInGroup = a.MaxCntInGroup;
     }
 
     public override string ToString()
@@ -183,6 +209,8 @@ internal class Arguments
                 -p {Path?.FullName}
                 --rand {Random}
                 --min {MinCharCnt}
+                --less {MaxCntInGroup}
+                --version {ShowVersion}
                 --out {PathToSave?.FullName}
                 """;
     }

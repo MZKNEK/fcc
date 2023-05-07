@@ -5,7 +5,7 @@ namespace FCC;
 
 public class FCC
 {
-    private static string _version = "1.0.4";
+    private static string _version = "1.0.5";
     private static StringBuilder _header = new StringBuilder()
         .AppendLine($"FCC # {_version}")
         .AppendLine("-----------------------------");
@@ -25,6 +25,12 @@ public class FCC
             return 1;
         }
 
+        if (arg.ShowVersion)
+        {
+            Console.WriteLine($"FCC {_version}");
+            return 0;
+        }
+
         if (arg.Help)
         {
             Console.WriteLine($"{_header.ToString()}{arg.GetHelp()}");
@@ -39,7 +45,7 @@ public class FCC
         var frOut = new FolderReader.Output();
         try
         {
-            frOut = new FolderReader(arg.Path, GetFlags(arg), arg.MinCharCnt).Analyze();
+            frOut = new FolderReader(arg.Path, GetFlags(arg), arg.MinCharCnt, arg.MaxCntInGroup).Analyze();
         }
         catch (Exception)
         {
