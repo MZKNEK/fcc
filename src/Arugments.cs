@@ -34,6 +34,14 @@ internal class Arguments
         }
     };
 
+    private static Action<Arguments, string> SetMinCntInGroup = (a, s) =>
+    {
+        if (!uint.TryParse(s, out a.MinCntInGroup))
+        {
+            throw new Exception($"More: '{s}' isn't a positive number!");
+        }
+    };
+
     private static Action<Arguments, string> SetMaxCntInGroup = (a, s) =>
     {
         if (!uint.TryParse(s, out var max))
@@ -68,6 +76,7 @@ internal class Arguments
         MaxCntInGroup = null;
         ShowVersion = false;
         ColorOutput = false;
+        MinCntInGroup = 0;
         PathToSave = null;
         GroupSize = false;
         DirNames = false;
@@ -146,6 +155,12 @@ internal class Arguments
                 longName: "min"));
 
             _parser.AddOption(
+                new(SetMinCntInGroup,
+                "min allowed count in group",
+                needNextArgument: true,
+                longName: "more"));
+
+            _parser.AddOption(
                 new(SetMaxCntInGroup,
                 "max allowed count in group",
                 needNextArgument: true,
@@ -169,6 +184,7 @@ internal class Arguments
     public bool ShowVersion;
     public bool ColorOutput;
     public bool GroupSizeAvg;
+    public uint MinCntInGroup;
     public uint? MaxCntInGroup;
     public DirectoryInfo? Path;
     public DirectoryInfo? PathToSave;
@@ -193,6 +209,7 @@ internal class Arguments
         ColorOutput = a.ColorOutput;
         GroupSizeAvg = a.GroupSizeAvg;
         MaxCntInGroup = a.MaxCntInGroup;
+        MinCntInGroup = a.MinCntInGroup;
     }
 
     public override string ToString()
@@ -210,6 +227,7 @@ internal class Arguments
                 --rand {Random}
                 --min {MinCharCnt}
                 --less {MaxCntInGroup}
+                --more {MinCntInGroup}
                 --version {ShowVersion}
                 --out {PathToSave?.FullName}
                 """;

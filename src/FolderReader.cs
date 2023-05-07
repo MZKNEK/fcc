@@ -14,6 +14,7 @@ internal class FolderReader
     private readonly Configuration _flags;
     private readonly DirectoryInfo? _mainFolder;
 
+    private readonly uint _minCountInGroup;
     private readonly uint? _maxCountInGroup;
 
     [Flags]
@@ -30,9 +31,10 @@ internal class FolderReader
     }
 
     internal FolderReader(DirectoryInfo? folder, Configuration flags = Configuration.None,
-        uint minNameLen = 20, uint? maxCountInGroup = null)
+        uint minNameLen = 20, uint? maxCountInGroup = null, uint minCountInGroup = 0)
     {
         _maxCountInGroup = maxCountInGroup;
+        _minCountInGroup = minCountInGroup;
         _minNameLength = minNameLen;
         _mainFolder = folder;
         _flags = flags;
@@ -223,9 +225,9 @@ internal class FolderReader
     private bool ShouldAddGroup(int inGroupCnt)
     {
         if (_maxCountInGroup is null)
-            return true;
+            return _minCountInGroup <= inGroupCnt;
 
-        return _maxCountInGroup >= inGroupCnt;
+        return _maxCountInGroup >= inGroupCnt && _minCountInGroup <= inGroupCnt;
     }
 
     internal Output Analyze()
