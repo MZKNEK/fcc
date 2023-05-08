@@ -9,4 +9,5 @@ Small console program for parsing directory content.
 ![fcc](./e_fcc.png)
 
 Directory content:
+
 ![ls](./e_ls.png)
