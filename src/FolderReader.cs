@@ -188,7 +188,7 @@ internal class FolderReader
                     lastElement = true;
                 }
 
-                AddEntry(inGroupCnt, avgSize, nameToAdd, addDirName ? files[i].Directory : null, addSize ? size : null, ref o);
+                AddEntry(inGroupCnt, avgSize, addSize, nameToAdd, addDirName ? files[i].Directory : null, size, ref o);
 
                 if (lastElement)
                     continue;
@@ -204,21 +204,20 @@ internal class FolderReader
             if (nameToAdd.IsEmpty)
             {
                 inGroupCnt = 0;
-                AddEntry(1, avgSize, files[i].Name, addDirName ? files[i].Directory : null, addSize ? size : null, ref o);
+                AddEntry(1, avgSize, addSize, files[i].Name, addDirName ? files[i].Directory : null, size, ref o);
             }
         }
     }
 
-    private void AddEntry(int inGroupCnt, bool avgSize, ReadOnlySpan<char> nameToAdd, DirectoryInfo? dir, BiSize? size, ref Output o)
+    private void AddEntry(int inGroupCnt, bool avgSize, bool addSize,
+        ReadOnlySpan<char> nameToAdd, DirectoryInfo? dir, BiSize size, ref Output o)
     {
         if (ShouldAddGroup(inGroupCnt))
         {
             o.Stats.Groups++;
             o.Stats.Files += inGroupCnt;
-            ProcessAndAddName(ref o.Result, dir, nameToAdd, inGroupCnt, size, avgSize);
-
-            if (size is not null)
-                o.Stats.Size.AddBytes(size.ToBytes());
+            o.Stats.Size.AddBytes(size.ToBytes());
+            ProcessAndAddName(ref o.Result, dir, nameToAdd, inGroupCnt, addSize ? size : null, avgSize);
         }
     }
 
