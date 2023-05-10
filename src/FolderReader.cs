@@ -171,7 +171,7 @@ internal class FolderReader
         bool addSize, bool avgSize, ref Output o)
     {
         var nameToAdd = ReadOnlySpan<char>.Empty;
-        var size = new BiSize();
+        var size = BiSize.FromBytes(0);
 
         for (int i = 0, inGroupCnt = 0; i < files.Length; i++)
         {

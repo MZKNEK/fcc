@@ -14,7 +14,7 @@ internal class BiSize
         PiB     = TiB * Kibi,
     }
 
-    public BiSize(Kind type = Kind.KiB)
+    public BiSize(Kind type = Kind.Bytes)
     {
         Value = 0;
         Type = type;
@@ -23,9 +23,19 @@ internal class BiSize
     public long Value { get; set; }
     public Kind Type { get; init; }
 
-    public long ToBytes() => Value * (long)Type;
-    public void AddBytes(long bytes) => this.Value += bytes / (long)this.Type;
-    public void RemoveBytes(long bytes) => this.Value -= bytes / (long)this.Type;
+    public long ToBytes() => this.Value * (long)this.Type;
+
+    public BiSize AddBytes(long bytes)
+    {
+        this.Value += bytes / (long)this.Type;
+        return this;
+    }
+
+    public BiSize RemoveBytes(long bytes)
+    {
+        this.Value -= bytes / (long)this.Type;
+        return this;
+    }
 
     public override string ToString() => ToSmartString();
     public string ToString(Kind type) => $"{GetValueAs(type)} {type}";
@@ -77,7 +87,9 @@ internal class BiSize
     {
         var lower = CalculateOptimalLower(out var optimal);
         decimal value = GetValueAs(lower);
-        value /= Kibi;
+
+        if (lower < optimal)
+            value /= Kibi;
 
         return $"{value.ToString("F")} {optimal}";
     }
@@ -88,28 +100,23 @@ internal class BiSize
         this.Value = size.Value;
     }
 
-    public BiSize Copy() => new BiSize(this);
-
-    public static BiSize FromBytes(long bytes, Kind type = Kind.KiB)
+    private BiSize(BiSize size, Kind type)
     {
-        var size = new BiSize(type);
-        size.AddBytes(bytes);
-        return size;
+        this.Type = type;
+        this.Value = size.Value;
     }
+
+    public BiSize Copy() => new BiSize(this);
+    public BiSize Copy(Kind type) => new BiSize(this, type);
+
+    public static BiSize FromBytes(long bytes, Kind type = Kind.Bytes)
+        => new BiSize(type).AddBytes(bytes);
 
     public static BiSize operator +(BiSize s1, BiSize s2)
-    {
-        var newSize = new BiSize(s1);
-        newSize.AddBytes(s2.ToBytes());
-        return newSize;
-    }
+        => new BiSize(s1).AddBytes(s2.ToBytes());
 
     public static BiSize operator -(BiSize s1, BiSize s2)
-    {
-        var newSize = new BiSize(s1);
-        newSize.RemoveBytes(s2.ToBytes());
-        return newSize;
-    }
+        => new BiSize(s1).RemoveBytes(s2.ToBytes());
 
     public static BiSize operator /(BiSize s, long? num)
     {
