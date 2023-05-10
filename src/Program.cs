@@ -5,7 +5,7 @@ namespace FCC;
 
 public class FCC
 {
-    private static string _version = "1.0.7";
+    private static string _version = "1.0.8";
     private static StringBuilder _header = new StringBuilder()
         .AppendLine($"FCC # {_version}")
         .AppendLine("-----------------------------");
