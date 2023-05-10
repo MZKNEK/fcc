@@ -5,17 +5,30 @@ namespace FCC;
 
 internal class FolderReader
 {
-    private const string Q_COLOR = "#D33682";
-    private const string D_COLOR = "#586E75";
-    private const string F_COLOR = "#2AA198";
-    private const string B_COLOR = "#002B36";
-
     private readonly uint _minNameLength;
     private readonly Configuration _flags;
     private readonly DirectoryInfo? _mainFolder;
 
     private readonly uint _minCountInGroup;
     private readonly uint? _maxCountInGroup;
+
+    private ConsoleColors _colors;
+
+    internal struct ConsoleColors
+    {
+        public ConsoleColors()
+        {
+            Q_COLOR = "#D33682";
+            D_COLOR = "#586E75";
+            F_COLOR = "#2AA198";
+            B_COLOR = "#002B36";
+        }
+
+        public string Q_COLOR;
+        public string D_COLOR;
+        public string F_COLOR;
+        public string B_COLOR;
+    }
 
     [Flags]
     internal enum Configuration
@@ -38,7 +51,11 @@ internal class FolderReader
         _minNameLength = minNameLen;
         _mainFolder = folder;
         _flags = flags;
+
+        _colors = new();
     }
+
+    internal void SetColors(ConsoleColors colors) => _colors = colors;
 
     internal struct Stats
     {
@@ -95,7 +112,7 @@ internal class FolderReader
         }
     }
 
-    private string Pastelize(string s, string f, string b = B_COLOR) => s.Pastel(f).PastelBg(b);
+    private string Pastelize(string s, string f) => s.Pastel(f).PastelBg(_colors.B_COLOR);
 
     private void ProcessAndAddName(ref StringBuilder builder, DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null,
         BiSize? size = null, bool avgSize = false) => ProcessAndAddName(ref builder, dir, fileName.ToString(), count, size, avgSize);
@@ -103,15 +120,15 @@ internal class FolderReader
     private void ProcessAndAddName(ref StringBuilder builder, DirectoryInfo? dir, string fileName, int? count = null,
         BiSize? size = null, bool avgSize = false)
     {
-        builder.Append(Pastelize("'", Q_COLOR));
+        builder.Append(Pastelize("'", _colors.Q_COLOR));
         if (dir is not null)
-            builder.Append(Pastelize(dir.Name, D_COLOR)).Append(Pastelize("/", Q_COLOR));
+            builder.Append(Pastelize(dir.Name, _colors.D_COLOR)).Append(Pastelize("/", _colors.Q_COLOR));
 
-        builder.Append(Pastelize(fileName, F_COLOR)).Append(Pastelize("'", Q_COLOR));
+        builder.Append(Pastelize(fileName, _colors.F_COLOR)).Append(Pastelize("'", _colors.Q_COLOR));
         if (count is not null)
-            builder.Append(Pastelize($" x{count}", Q_COLOR));
+            builder.Append(Pastelize($" x{count}", _colors.Q_COLOR));
         if (size is not null)
-            builder.Append(Pastelize($" [{(avgSize ? (size / count) : size)}]", D_COLOR));
+            builder.Append(Pastelize($" [{(avgSize ? (size / count) : size)}]", _colors.D_COLOR));
 
         builder.AppendLine();
     }

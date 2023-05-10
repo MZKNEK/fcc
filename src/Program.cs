@@ -45,7 +45,19 @@ public class FCC
         var frOut = new FolderReader.Output();
         try
         {
-            frOut = new FolderReader(arg.Path, GetFlags(arg), arg.MinCharCnt, arg.MaxCntInGroup, arg.MinCntInGroup).Analyze();
+            var reader = new FolderReader(arg.Path, GetFlags(arg), arg.MinCharCnt, arg.MaxCntInGroup, arg.MinCntInGroup);
+
+            if (Environment.GetEnvironmentVariable("FCC_COLORS") is not null)
+            {
+                var colors = new FolderReader.ConsoleColors();
+                colors.Q_COLOR = Environment.GetEnvironmentVariable("FCC_QC") ?? colors.Q_COLOR;
+                colors.B_COLOR = Environment.GetEnvironmentVariable("FCC_BC") ?? colors.B_COLOR;
+                colors.D_COLOR = Environment.GetEnvironmentVariable("FCC_DC") ?? colors.D_COLOR;
+                colors.F_COLOR = Environment.GetEnvironmentVariable("FCC_FC") ?? colors.F_COLOR;
+                reader.SetColors(colors);
+            }
+
+            frOut = reader.Analyze();
         }
         catch (Exception)
         {
