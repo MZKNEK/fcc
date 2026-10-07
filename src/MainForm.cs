@@ -29,17 +29,18 @@ internal sealed class MainForm : Form
     private readonly NumericUpDown _more;
     private readonly CheckBox _lessEnabled;
     private readonly NumericUpDown _less;
-    private readonly Button _run;
-    private readonly Button _save;
+    private readonly ToolStripMenuItem _saveItem;
     private readonly ListView _list;
     private readonly ToolStripStatusLabel _statusFiles;
     private readonly ToolStripStatusLabel _statusGroups;
     private readonly ToolStripStatusLabel _statusSize;
+    private readonly System.Windows.Forms.Timer _debounce;
 
     private readonly List<string> _columnNames = new();
 
     private FolderReader.Output _lastOutput;
 
+    private int _runId;
     private int _sortColumn = -1;
     private bool _sortAscending = true;
     private bool _hasDirColumn;
@@ -55,8 +56,29 @@ internal sealed class MainForm : Form
 
         _lastOutput = new FolderReader.Output();
 
+        _debounce = new System.Windows.Forms.Timer { Interval = 400 };
+        _debounce.Tick += async (_, _) =>
+        {
+            _debounce.Stop();
+            await RunAnalysisAsync();
+        };
+
         // --- menu ----------------------------------------------------------
         var menu = new MenuStrip();
+
+        var fileMenu = new ToolStripMenuItem("File");
+        _saveItem = new ToolStripMenuItem("Save output...")
+        {
+            Enabled = false,
+            ShortcutKeys = Keys.Control | Keys.S
+        };
+        _saveItem.Click += (_, _) => SaveOutput();
+        fileMenu.DropDownItems.Add(_saveItem);
+        fileMenu.DropDownItems.Add(new ToolStripSeparator());
+        var exitItem = new ToolStripMenuItem("Exit");
+        exitItem.Click += (_, _) => Close();
+        fileMenu.DropDownItems.Add(exitItem);
+
         var viewMenu = new ToolStripMenuItem("View");
         var unitMenu = new ToolStripMenuItem("Size unit");
 
@@ -76,6 +98,8 @@ internal sealed class MainForm : Form
         }
 
         viewMenu.DropDownItems.Add(unitMenu);
+
+        menu.Items.Add(fileMenu);
         menu.Items.Add(viewMenu);
         MainMenuStrip = menu;
 
@@ -94,6 +118,7 @@ internal sealed class MainForm : Form
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Text = Directory.GetCurrentDirectory()
         };
+        _path.TextChanged += (_, _) => ScheduleRun();
 
         var pathMenu = new ContextMenuStrip();
         pathMenu.Items.Add("Open in Explorer", null, (_, _) => OpenInExplorer());
@@ -138,7 +163,6 @@ internal sealed class MainForm : Form
             if (!_groupSize.Checked)
                 _avgSize.Checked = false;
         };
-        _dirNames.CheckedChanged += (_, _) => RefreshEntries();
 
         options.Controls.AddRange(new Control[]
         {
@@ -169,13 +193,6 @@ internal sealed class MainForm : Form
             minLabel, _min, moreLabel, _more, _lessEnabled, _less
         });
 
-        // --- actions -------------------------------------------------------
-        _run = new Button { Text = "Run", Location = new Point(12, 274), Width = 100 };
-        _run.Click += (_, _) => Run();
-
-        _save = new Button { Text = "Save output...", Location = new Point(120, 274), Width = 130, Enabled = false };
-        _save.Click += (_, _) => SaveOutput();
-
         // --- results -------------------------------------------------------
         _list = new ListView
         {
@@ -184,8 +201,8 @@ internal sealed class MainForm : Form
             GridLines = true,
             MultiSelect = true,
             HideSelection = false,
-            Location = new Point(12, 310),
-            Size = new Size(726, 220),
+            Location = new Point(12, 274),
+            Size = new Size(726, 256),
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
 
@@ -210,13 +227,6 @@ internal sealed class MainForm : Form
         _list.ContextMenuStrip = listMenu;
         _list.DoubleClick += (_, _) => OpenEntryInExplorer();
 
-        var totalLabel = new ToolStripStatusLabel("TOTAL")
-        {
-            Font = new Font(Font, FontStyle.Bold),
-            ForeColor = SystemColors.GrayText,
-            Margin = new Padding(6, 0, 10, 0)
-        };
-
         _statusFiles = new ToolStripStatusLabel("0 files")
         {
             BorderSides = ToolStripStatusLabelBorderSides.Right,
@@ -239,6 +249,13 @@ internal sealed class MainForm : Form
             Margin = new Padding(0, 0, 6, 0)
         };
 
+        var totalLabel = new ToolStripStatusLabel("TOTAL")
+        {
+            Font = new Font(Font, FontStyle.Bold),
+            ForeColor = SystemColors.GrayText,
+            Margin = new Padding(6, 0, 10, 0)
+        };
+
         var spring = new ToolStripStatusLabel { Spring = true };
 
         var status = new StatusStrip { Dock = DockStyle.Bottom, SizingGrip = false };
@@ -248,14 +265,77 @@ internal sealed class MainForm : Form
         status.Items.Add(spring);
         status.Items.Add(_statusSize);
 
-        AcceptButton = _run;
-
         Controls.AddRange(new Control[]
         {
-            menu, dirLabel, _path, _browse, options, filters, _run, _save, _list, status
+            menu, dirLabel, _path, _browse, options, filters, _list, status
         });
 
         EnsureColumns();
+
+        // Auto-run when the directory or any option changes.
+        _hidden.CheckedChanged += (_, _) => ScheduleRun();
+        _recursive.CheckedChanged += (_, _) => ScheduleRun();
+        _dirNames.CheckedChanged += (_, _) => ScheduleRun();
+        _groupSize.CheckedChanged += (_, _) => ScheduleRun();
+        _avgSize.CheckedChanged += (_, _) => ScheduleRun();
+        _verbose.CheckedChanged += (_, _) => ScheduleRun();
+        _random.CheckedChanged += (_, _) => ScheduleRun();
+        _lessEnabled.CheckedChanged += (_, _) => ScheduleRun();
+        _min.ValueChanged += (_, _) => ScheduleRun();
+        _more.ValueChanged += (_, _) => ScheduleRun();
+        _less.ValueChanged += (_, _) => ScheduleRun();
+
+        Shown += (_, _) => ScheduleRun();
+        FormClosed += (_, _) => _debounce.Dispose();
+    }
+
+    private void ScheduleRun()
+    {
+        _debounce.Stop();
+        _debounce.Start();
+    }
+
+    private async Task RunAnalysisAsync()
+    {
+        var dir = new DirectoryInfo(_path.Text);
+        if (!dir.Exists)
+        {
+            _lastOutput = new FolderReader.Output();
+            _list.Items.Clear();
+            SetStatus();
+            _statusFiles.Text = "directory not found";
+            _saveItem.Enabled = false;
+            return;
+        }
+
+        var id = ++_runId;
+        var reader = new FolderReader(dir, BuildFlags(), (uint)_min.Value,
+            _lessEnabled.Checked ? (uint)_less.Value : null, (uint)_more.Value);
+
+        FolderReader.Output output;
+        try
+        {
+            output = await Task.Run(reader.Analyze);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            MessageBox.Show(this, "You do not have sufficient permissions to view all directories or files.", "FCC",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex);
+            return;
+        }
+
+        // A newer run may have started while this one was scanning.
+        if (IsDisposed || id != _runId)
+            return;
+
+        _lastOutput = output;
+        RefreshEntries();
+        _saveItem.Enabled = true;
     }
 
     private void EnsureColumns()
@@ -308,36 +388,6 @@ internal sealed class MainForm : Form
         if (_random.Checked) flags |= FolderReader.Configuration.RandomEntry;
 
         return flags;
-    }
-
-    private void Run()
-    {
-        var dir = new DirectoryInfo(_path.Text);
-        if (!dir.Exists)
-        {
-            MessageBox.Show(this, "Directory does not exist.", "FCC",
-                MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-
-        try
-        {
-            var max = _lessEnabled.Checked ? (uint)_less.Value : (uint?)null;
-            var reader = new FolderReader(dir, BuildFlags(), (uint)_min.Value, max, (uint)_more.Value);
-
-            _lastOutput = reader.Analyze();
-            RefreshEntries();
-            _save.Enabled = true;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            MessageBox.Show(this, "You do not have sufficient permissions to view all directories or files.", "FCC",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex);
-        }
     }
 
     private void RefreshEntries()

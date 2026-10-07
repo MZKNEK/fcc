@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Test
+        run: dotnet test tests/fcc.Tests/fcc.Tests.csproj -c Release --nologo
+
+      - name: Publish single-file executable
+        run: >
+          dotnet publish src/fcc.csproj -c Release -r win-x64
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -o publish
+
+      - name: Rename artifact
+        shell: pwsh
+        run: Move-Item publish/fcc.exe "publish/fcc-${{ github.ref_name }}-win-x64.exe"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: publish/fcc-*-win-x64.exe
+          generate_release_notes: true

@@ -43,13 +43,34 @@ When no `-p` is given, the current directory is used.
 
 ## Graphical interface
 
-Run with `--gui` to open a window where you can pick a directory, tick the
-options (hidden, recursive, group size, average, verbose, random, group
-filters) and see the result. The output can be saved to a `.fcc`/`.txt` file
-with **Save output...**.
+Run with `--gui` to open a window:
 
 ```
 fcc --gui
+```
+
+Pick a directory and tick the options (hidden, recursive, group size, average,
+verbose, random, group filters). The list refreshes automatically when the
+directory or an option changes; there is no separate run button.
+
+- Results are shown one row per entry with the columns `Name`, `Count`, `Size`
+  and `Unit`. Enabling `Subdir names (-d)` adds a `Dir` column.
+- Click a column header to sort. `View > Size unit` switches the displayed unit
+  (Auto, Bytes, KiB, MiB, GiB, TiB).
+- Right-click a row to `Open`, `Open in Explorer` or `Copy path`. For a grouped
+  entry, `Open` launches the first file of the group.
+- `File > Save output...` (Ctrl+S) writes the text report to a `.fcc`/`.txt`
+  file.
+
+## Releases
+
+Pushing a tag like `v1.1.0` triggers the release workflow, which builds a
+self-contained single-file `fcc.exe` for Windows x64 and attaches it to a
+GitHub release:
+
+```sh
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 ## Grouping
