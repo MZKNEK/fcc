@@ -7,6 +7,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release:
     runs-on: windows-latest
@@ -30,12 +34,20 @@ jobs:
           -p:EnableCompressionInSingleFile=true
           -o publish
 
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          $version = '${{ github.ref_name }}' -replace '^v', ''
+          "value=$version" >> $env:GITHUB_OUTPUT
+
       - name: Rename artifact
         shell: pwsh
-        run: Move-Item publish/fcc.exe "publish/fcc-${{ github.ref_name }}-win-x64.exe"
+        run: Move-Item publish/fcc.exe "publish/fcc-${{ steps.version.outputs.value }}-win-x64.exe"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          name: ${{ steps.version.outputs.value }}
           files: publish/fcc-*-win-x64.exe
           generate_release_notes: true
