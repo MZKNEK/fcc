@@ -76,15 +76,19 @@ internal class FolderReader
                 : $"{Files} FILES | {Size}";
     }
 
+    internal readonly record struct Entry(string? Directory, string Name, int? Count, string? Size);
+
     internal struct Output
     {
         public Output()
         {
             Result = new();
+            Entries = new();
             Stats = new();
         }
 
         public StringBuilder Result;
+        public List<Entry> Entries;
         public Stats Stats;
     }
 
@@ -124,21 +128,33 @@ internal class FolderReader
 
     private string Pastelize(string s, string f) => s.Pastel(f).PastelBg(_colors.B_COLOR);
 
-    private void ProcessAndAddName(ref StringBuilder builder, DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null,
-        BiSize? size = null, bool avgSize = false) => ProcessAndAddName(ref builder, dir, fileName.ToString(), count, size, avgSize);
+    private void ProcessAndAddName(ref Output o, DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null,
+        BiSize? size = null, bool avgSize = false) => ProcessAndAddName(ref o, dir, fileName.ToString(), count, size, avgSize);
 
-    private void ProcessAndAddName(ref StringBuilder builder, DirectoryInfo? dir, string fileName, int? count = null,
+    private void ProcessAndAddName(ref Output o, DirectoryInfo? dir, string fileName, int? count = null,
         BiSize? size = null, bool avgSize = false)
     {
-        builder.Append(Pastelize("'", _colors.Q_COLOR));
-        if (dir is not null)
-            builder.Append(Pastelize(dir.Name, _colors.D_COLOR)).Append(Pastelize("/", _colors.Q_COLOR));
+        var sizeText = size is null
+            ? null
+            : (avgSize ? BiSize.AverageString(size, count ?? 0) : size.ToString());
 
-        builder.Append(Pastelize(fileName, _colors.F_COLOR)).Append(Pastelize("'", _colors.Q_COLOR));
-        if (count is not null)
-            builder.Append(Pastelize($" x{count}", _colors.Q_COLOR));
-        if (size is not null)
-            builder.Append(Pastelize($" [{(avgSize ? BiSize.AverageString(size, count ?? 0) : size.ToString())}]", _colors.D_COLOR));
+        var entry = new Entry(dir?.Name, fileName, count, sizeText);
+        o.Entries.Add(entry);
+        AppendEntryLine(ref o, entry);
+    }
+
+    private void AppendEntryLine(ref Output o, Entry entry)
+    {
+        var builder = o.Result;
+        builder.Append(Pastelize("'", _colors.Q_COLOR));
+        if (entry.Directory is not null)
+            builder.Append(Pastelize(entry.Directory, _colors.D_COLOR)).Append(Pastelize("/", _colors.Q_COLOR));
+
+        builder.Append(Pastelize(entry.Name, _colors.F_COLOR)).Append(Pastelize("'", _colors.Q_COLOR));
+        if (entry.Count is not null)
+            builder.Append(Pastelize($" x{entry.Count}", _colors.Q_COLOR));
+        if (entry.Size is not null)
+            builder.Append(Pastelize($" [{entry.Size}]", _colors.D_COLOR));
 
         builder.AppendLine();
     }
@@ -185,7 +201,7 @@ internal class FolderReader
             foreach (var file in files)
             {
                 o.Stats.Size.AddBytes(file.Length);
-                ProcessAndAddName(ref o.Result, addDirName ? dir : null, file.Name, null,
+                ProcessAndAddName(ref o, addDirName ? dir : null, file.Name, null,
                     addSize ? BiSize.FromBytes(file.Length) : null);
             }
             return;
@@ -244,7 +260,7 @@ internal class FolderReader
             o.Stats.Groups++;
             o.Stats.Files += inGroupCnt;
             o.Stats.Size.AddBytes(size.ToBytes());
-            ProcessAndAddName(ref o.Result, dir, nameToAdd, inGroupCnt, addSize ? size : null, avgSize);
+            ProcessAndAddName(ref o, dir, nameToAdd, inGroupCnt, addSize ? size : null, avgSize);
         }
     }
 
@@ -262,16 +278,13 @@ internal class FolderReader
         foreach (var dir in GetDirectories(_mainFolder))
             ProcessDir(dir, ref o);
 
-        if (_flags.HasFlag(Configuration.RandomEntry))
+        if (_flags.HasFlag(Configuration.RandomEntry) && o.Entries.Count > 0)
         {
-            var lines = o.Result.ToString()
-                .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-
-            if (lines.Length > 0)
-            {
-                o.Result.Clear();
-                o.Result.AppendLine(lines[Random.Shared.Next(lines.Length)]);
-            }
+            var pick = o.Entries[Random.Shared.Next(o.Entries.Count)];
+            o.Entries.Clear();
+            o.Entries.Add(pick);
+            o.Result.Clear();
+            AppendEntryLine(ref o, pick);
         }
 
         if (o.Result.Length > 0)

@@ -140,6 +140,7 @@ public sealed class FolderReaderTests : IDisposable
             .ToArray();
 
         Assert.Single(entries);
+        Assert.Single(output.Entries);
     }
 
     [Fact]
@@ -197,5 +198,49 @@ public sealed class FolderReaderTests : IDisposable
 
         Assert.Equal(4, without.Stats.Files);
         Assert.Equal(5, with.Stats.Files);
+    }
+
+    [Fact]
+    public void Entries_ExposeStructuredData()
+    {
+        Seed();
+
+        var flags = FolderReader.Configuration.GroupSize | FolderReader.Configuration.AvgSize;
+        var output = Reader(flags).Analyze();
+
+        Assert.Equal(2, output.Entries.Count);
+
+        var group = output.Entries.Single(e => e.Name == Prefix);
+        Assert.Equal(3, group.Count);
+        Assert.Equal("4.67 Bytes", group.Size);
+        Assert.Null(group.Directory);
+
+        var solo = output.Entries.Single(e => e.Name == "solo.txt");
+        Assert.Equal(1, solo.Count);
+    }
+
+    [Fact]
+    public void Entry_Directory_IsSetForSubdirectories()
+    {
+        Seed();
+        var sub = Directory.CreateDirectory(Path.Combine(_root, "sub"));
+        File.WriteAllBytes(Path.Combine(sub.FullName, "nested.txt"), new byte[3]);
+
+        var flags = FolderReader.Configuration.Recursive | FolderReader.Configuration.DirNames;
+        var output = Reader(flags).Analyze();
+
+        var nested = output.Entries.Single(e => e.Name == "nested.txt");
+        Assert.Equal("sub", nested.Directory);
+    }
+
+    [Fact]
+    public void Verbose_EntriesHaveNoCount()
+    {
+        Seed();
+
+        var output = Reader(FolderReader.Configuration.Verbose).Analyze();
+
+        Assert.Equal(4, output.Entries.Count);
+        Assert.All(output.Entries, e => Assert.Null(e.Count));
     }
 }

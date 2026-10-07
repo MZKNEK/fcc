@@ -20,7 +20,10 @@ internal sealed class MainForm : Form
     private readonly NumericUpDown _less;
     private readonly Button _run;
     private readonly Button _save;
-    private readonly TextBox _output;
+    private readonly ListView _list;
+    private readonly ToolStripStatusLabel _status;
+
+    private FolderReader.Output _lastOutput;
 
     internal MainForm()
     {
@@ -29,6 +32,8 @@ internal sealed class MainForm : Form
         MinimumSize = new Size(640, 460);
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 9F);
+
+        _lastOutput = new FolderReader.Output();
 
         // --- directory row -------------------------------------------------
         var dirLabel = new Label
@@ -121,24 +126,37 @@ internal sealed class MainForm : Form
         _save = new Button { Text = "Save output...", Location = new Point(120, 246), Width = 130, Enabled = false };
         _save.Click += (_, _) => SaveOutput();
 
-        // --- output --------------------------------------------------------
-        _output = new TextBox
+        // --- results -------------------------------------------------------
+        _list = new ListView
         {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Both,
-            WordWrap = false,
-            Font = new Font("Consolas", 9F),
+            View = View.Details,
+            FullRowSelect = true,
+            GridLines = true,
+            MultiSelect = true,
+            HideSelection = false,
             Location = new Point(12, 282),
-            Size = new Size(726, 276),
+            Size = new Size(726, 250),
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
+        _list.Columns.Add("Name", 520);
+        _list.Columns.Add("Count", 90);
+        _list.Columns.Add("Size", 110);
+
+        _status = new ToolStripStatusLabel
+        {
+            Text = "Ready",
+            Spring = true,
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        var status = new StatusStrip { Dock = DockStyle.Bottom };
+        status.Items.Add(_status);
 
         AcceptButton = _run;
 
         Controls.AddRange(new Control[]
         {
-            dirLabel, _path, _browse, options, filters, _run, _save, _output
+            dirLabel, _path, _browse, options, filters, _run, _save, _list, status
         });
     }
 
@@ -181,7 +199,8 @@ internal sealed class MainForm : Form
             var reader = new FolderReader(dir, BuildFlags(), (uint)_min.Value, max, (uint)_more.Value);
             var output = reader.Analyze();
 
-            _output.Text = output.Result.ToString();
+            _lastOutput = output;
+            ShowEntries(output);
             _save.Enabled = true;
         }
         catch (UnauthorizedAccessException)
@@ -194,6 +213,24 @@ internal sealed class MainForm : Form
             MessageBox.Show(this, ex.Message, "FCC",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void ShowEntries(FolderReader.Output output)
+    {
+        _list.BeginUpdate();
+        _list.Items.Clear();
+
+        foreach (var entry in output.Entries)
+        {
+            var name = entry.Directory is null ? entry.Name : $"{entry.Directory}/{entry.Name}";
+            var item = new ListViewItem(name);
+            item.SubItems.Add(entry.Count is null ? string.Empty : $"x{entry.Count}");
+            item.SubItems.Add(entry.Size ?? string.Empty);
+            _list.Items.Add(item);
+        }
+
+        _list.EndUpdate();
+        _status.Text = $"TOTAL: {output.Stats.Summary(!_verbose.Checked)}";
     }
 
     private void SaveOutput()
@@ -209,7 +246,7 @@ internal sealed class MainForm : Form
 
         try
         {
-            File.WriteAllText(dialog.FileName, _output.Text);
+            File.WriteAllText(dialog.FileName, _lastOutput.Result.ToString());
         }
         catch (Exception ex)
         {
