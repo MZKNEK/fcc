@@ -40,26 +40,6 @@ internal class BiSize
     public override string ToString() => ToSmartString();
     public string ToString(Kind type) => $"{GetValueAs(type)} {type}";
 
-    private Kind CalculateOptimal()
-    {
-        var bytes = ToBytes();
-        foreach (long val in Enum.GetValues(typeof(Kind)))
-        {
-            if (val > bytes)
-                return (Kind)(val / Kibi);
-        }
-        return Kind.PiB;
-    }
-
-    private Kind CalculateOptimalLower(out Kind optimal)
-    {
-        optimal = CalculateOptimal();
-        if (optimal > Kind.Bytes)
-            return (Kind)((long)optimal / Kibi);
-
-        return Kind.Bytes;
-    }
-
     public long GetValueAs(Kind type)
     {
         var oldType  = (long)this.Type;
@@ -83,15 +63,27 @@ internal class BiSize
         return newValue;
     }
 
-    private string ToSmartString()
+    private string ToSmartString() => SmartString(ToBytes());
+
+    /// <summary>
+    /// Formats an average (e.g. group size divided by file count) keeping
+    /// fractional bytes, so 7 B / 2 shows as "3.50 Bytes" instead of "3.00".
+    /// </summary>
+    public static string AverageString(BiSize total, long count)
+        => count <= 0 ? total.ToString() : SmartString((decimal)total.ToBytes() / count);
+
+    private static string SmartString(decimal bytes)
     {
-        var lower = CalculateOptimalLower(out var optimal);
-        decimal value = GetValueAs(lower);
+        var type = Kind.Bytes;
+        var value = bytes;
 
-        if (lower < optimal)
+        while (value >= Kibi && type < Kind.PiB)
+        {
             value /= Kibi;
+            type = (Kind)((long)type * Kibi);
+        }
 
-        return $"{value.ToString("F")} {optimal}";
+        return $"{value.ToString("F")} {type}";
     }
 
     private BiSize(BiSize size)

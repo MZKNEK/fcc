@@ -69,6 +69,11 @@ internal class FolderReader
         public int Files;
         public int Groups;
         public BiSize Size;
+
+        internal readonly string Summary(bool includeGroups)
+            => includeGroups
+                ? $"{Files} FILES | {Groups} GROUPS | {Size}"
+                : $"{Files} FILES | {Size}";
     }
 
     internal struct Output
@@ -85,13 +90,10 @@ internal class FolderReader
 
     private bool IgnoreDir(DirectoryInfo dir)
     {
-        var isRoot = dir.Root.Name.Equals(dir.Name);
-        var isSystem = dir.Attributes.HasFlag(FileAttributes.System);
-        var isHidden = dir.Attributes.HasFlag(FileAttributes.Hidden);
-        if (!isRoot && isSystem)
+        if (dir.Attributes.HasFlag(FileAttributes.System))
             return true;
 
-        return !isRoot && isHidden && !_flags.HasFlag(Configuration.Hidden);
+        return dir.Attributes.HasFlag(FileAttributes.Hidden) && !_flags.HasFlag(Configuration.Hidden);
     }
 
     private IEnumerable<DirectoryInfo> GetDirectories(DirectoryInfo? dir)
@@ -99,16 +101,24 @@ internal class FolderReader
         if (dir is null)
             yield break;
 
-        if (IgnoreDir(dir))
-            yield break;
-
+        // The explicitly requested folder is always scanned; hidden/system
+        // filtering only applies while descending into subdirectories.
         yield return dir;
 
         if (_flags.HasFlag(Configuration.Recursive))
         {
             foreach (var d in dir.GetDirectories())
+            {
+                if (IgnoreDir(d))
+                    continue;
+
+                // Skip reparse points (symlinks/junctions) to avoid loops and double counting.
+                if (d.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                    continue;
+
                 foreach (var rd in GetDirectories(d))
                     yield return rd;
+            }
         }
     }
 
@@ -128,27 +138,25 @@ internal class FolderReader
         if (count is not null)
             builder.Append(Pastelize($" x{count}", _colors.Q_COLOR));
         if (size is not null)
-            builder.Append(Pastelize($" [{(avgSize ? (size / count) : size)}]", _colors.D_COLOR));
+            builder.Append(Pastelize($" [{(avgSize ? BiSize.AverageString(size, count ?? 0) : size.ToString())}]", _colors.D_COLOR));
 
         builder.AppendLine();
     }
 
     private ReadOnlySpan<char> GetCommonName(string name1, string name2)
     {
-        var minLength = Math.Min(name1.Length, name2.Length);
-        for (int i = 1; i < minLength; i += 3)
-        {
-            var newLength = minLength - i;
-            if (newLength <= _minNameLength)
-                break;
+        var maxLength = Math.Min(name1.Length, name2.Length);
+        if (maxLength <= _minNameLength)
+            return ReadOnlySpan<char>.Empty;
 
-            var span1 = name1.AsSpan(0, newLength);
-            var span2 = name2.AsSpan(0, newLength);
+        var length = 0;
+        while (length < maxLength && name1[length] == name2[length])
+            length++;
 
-            if (span1.SequenceEqual(span2))
-                return name1.AsSpan(0, newLength - 2).TrimEnd();
-        }
-        return ReadOnlySpan<char>.Empty;
+        if (length <= _minNameLength)
+            return ReadOnlySpan<char>.Empty;
+
+        return name1.AsSpan(0, length).TrimEnd();
     }
 
     private FileInfo[] GetFilesFromDir(DirectoryInfo dir)
@@ -156,7 +164,9 @@ internal class FolderReader
         if (_flags.HasFlag(Configuration.Hidden))
             return dir.GetFiles();
 
-        return dir.GetFiles().Where(file => !file.Attributes.HasFlag(FileAttributes.Hidden)).ToArray();
+        return dir.EnumerateFiles()
+            .Where(file => !file.Attributes.HasFlag(FileAttributes.Hidden))
+            .ToArray();
     }
 
     private void ProcessDir(DirectoryInfo dir, ref Output o)
@@ -254,19 +264,20 @@ internal class FolderReader
 
         if (_flags.HasFlag(Configuration.RandomEntry))
         {
-            var lines = o.Result.ToString().Split('\n');
-            if (lines?.Length > 1)
+            var lines = o.Result.ToString()
+                .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (lines.Length > 0)
             {
                 o.Result.Clear();
                 o.Result.AppendLine(lines[Random.Shared.Next(lines.Length)]);
             }
         }
 
-        if (!_flags.HasFlag(Configuration.Verbose))
-        {
-            o.Result.AppendLine("-----------------------------")
-                .AppendLine($"TOTAL: {o.Stats.Files} FILES | {o.Stats.Groups} GROUPS | {o.Stats.Size}");
-        }
+        if (o.Result.Length > 0)
+            o.Result.AppendLine("-----------------------------");
+
+        o.Result.AppendLine($"TOTAL: {o.Stats.Summary(!_flags.HasFlag(Configuration.Verbose))}");
 
         return o;
     }

@@ -98,7 +98,7 @@ internal class Arguments
 
             _parser.AddOption(
                 new(SetTrue(Hidden),
-                "include hidden directories",
+                "include hidden files and directories",
                 name: 'a'));
 
             _parser.AddOption(

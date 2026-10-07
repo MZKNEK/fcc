@@ -5,8 +5,9 @@ namespace FCC;
 
 public class FCC
 {
-    private static string _version = "1.0.8";
-    private static StringBuilder _header = new StringBuilder()
+    private static readonly string _version =
+        typeof(FCC).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+    private static readonly StringBuilder _header = new StringBuilder()
         .AppendLine($"FCC # {_version}")
         .AppendLine("-----------------------------");
 
@@ -59,29 +60,37 @@ public class FCC
 
             frOut = reader.Analyze();
         }
-        catch (Exception)
+        catch (UnauthorizedAccessException)
         {
             Console.WriteLine($"{_header.ToString()}You do not have sufficient permissions to view all directories or files.");
             return 2;
         }
+        catch (IOException ex)
+        {
+            Console.WriteLine($"{_header.ToString()}I/O error: {ex.Message}");
+            return 3;
+        }
 
         if (arg.PathToSave is not null)
         {
-            var dstr = DateTime.Now.ToString("u").Replace(".", "_").Replace(":", "_");
-            var savePath = arg.PathToSave.FullName + $"\\{dstr}.fcc";
+            var dstr = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+            var savePath = Path.Combine(arg.PathToSave.FullName, $"{dstr}.fcc");
 
-            var stats = new StringBuilder()
-                .Append($"-----------------------------\nTOTAL: {frOut.Stats.Files} FILES");
-
-            if (!arg.Verbose)
+            try
             {
-                stats.Append($" | {frOut.Stats.Groups} GROUPS");
+                File.WriteAllText(savePath, frOut.Result.ToString());
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Console.WriteLine($"{_header.ToString()}Could not save output: {ex.Message}");
+                return 3;
             }
 
-            stats.Append($" | {frOut.Stats.Size}");
+            var stats = new StringBuilder()
+                .AppendLine("-----------------------------")
+                .AppendLine($"TOTAL: {frOut.Stats.Summary(!arg.Verbose)}");
 
             Console.WriteLine($"{_header.ToString()}Saved to '{savePath}'\n{stats.ToString()}");
-            File.WriteAllTextAsync(savePath, frOut.Result.ToString()).GetAwaiter().GetResult();
             return 0;
         }
 

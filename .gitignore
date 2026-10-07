@@ -2,6 +2,9 @@
 .vs
 .vscode
 .settings
+.idea
+publish
+*.user
 bin
 obj
 src/.vscode
