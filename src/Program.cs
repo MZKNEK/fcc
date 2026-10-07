@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Windows.Forms;
 using Pastel;
 
 namespace FCC;
@@ -11,6 +12,7 @@ public class FCC
         .AppendLine($"FCC # {_version}")
         .AppendLine("-----------------------------");
 
+    [STAThread]
     public static int Main(string[] args)
     {
         ConsoleExtensions.Disable();
@@ -31,6 +33,9 @@ public class FCC
             Console.WriteLine($"FCC {_version}");
             return 0;
         }
+
+        if (arg.Gui)
+            return RunGui();
 
         if (arg.Help)
         {
@@ -95,6 +100,14 @@ public class FCC
         }
 
         Console.WriteLine($"{_header.ToString()}{frOut.Result.ToString()}");
+        return 0;
+    }
+
+    private static int RunGui()
+    {
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        Application.Run(new MainForm());
         return 0;
     }
 

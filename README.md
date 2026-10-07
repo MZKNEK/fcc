@@ -39,6 +39,18 @@ When no `-p` is given, the current directory is used.
 | `--less <n>` | max allowed count in a group |
 | `--rand` | print one random entry |
 | `--version` | print program version |
+| `--gui` | launch the graphical interface |
+
+## Graphical interface
+
+Run with `--gui` to open a window where you can pick a directory, tick the
+options (hidden, recursive, group size, average, verbose, random, group
+filters) and see the result. The output can be saved to a `.fcc`/`.txt` file
+with **Save output...**.
+
+```
+fcc --gui
+```
 
 ## Grouping
 

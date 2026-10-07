@@ -76,6 +76,7 @@ internal class Arguments
         MaxCntInGroup = null;
         ShowVersion = false;
         ColorOutput = false;
+        Gui = false;
         MinCntInGroup = 0;
         PathToSave = null;
         GroupSize = false;
@@ -170,12 +171,18 @@ internal class Arguments
                 new(SetTrue(ShowVersion),
                 "prints program version",
                 longName: "version"));
+
+            _parser.AddOption(
+                new(SetTrue(Gui),
+                "launch the graphical interface",
+                longName: "gui"));
         }
     }
 
     public bool Help;
     public bool Hidden;
     public bool Random;
+    public bool Gui;
     public bool Recurse;
     public bool Verbose;
     public bool DirNames;
@@ -199,6 +206,7 @@ internal class Arguments
         Path = a.Path;
         Hidden = a.Hidden;
         Random = a.Random;
+        Gui = a.Gui;
         Recurse = a.Recurse;
         Verbose = a.Verbose;
         DirNames = a.DirNames;
@@ -229,6 +237,7 @@ internal class Arguments
                 --less {MaxCntInGroup}
                 --more {MinCntInGroup}
                 --version {ShowVersion}
+                --gui {Gui}
                 --out {PathToSave?.FullName}
                 """;
     }
