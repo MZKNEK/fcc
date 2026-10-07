@@ -53,7 +53,9 @@ public sealed class FolderReaderTests : IDisposable
 
         Assert.Equal(4, output.Stats.Files);
         Assert.Equal(2, output.Stats.Groups);
-        Assert.Contains(Prefix, output.Result.ToString());
+
+        var group = output.Entries.Single(e => e.Count == 3);
+        Assert.StartsWith(group.Name, Prefix + "1.txt");
     }
 
     [Fact]
@@ -210,13 +212,14 @@ public sealed class FolderReaderTests : IDisposable
 
         Assert.Equal(2, output.Entries.Count);
 
-        var group = output.Entries.Single(e => e.Name == Prefix);
+        var group = output.Entries.Single(e => e.Count == 3);
         Assert.Equal(3, group.Count);
         Assert.Equal("4.67 Bytes", group.Size);
         Assert.Equal(14.0 / 3, group.SizeBytes, 3);
         Assert.Null(group.Directory);
         Assert.Equal(new DirectoryInfo(_root).FullName, group.FullDirectory);
         Assert.Equal(Path.Combine(_root, Prefix + "1.txt"), group.OpenPath);
+        Assert.StartsWith(group.Name, Prefix + "1.txt");
 
         var solo = output.Entries.Single(e => e.Name == "solo.txt");
         Assert.Equal(1, solo.Count);

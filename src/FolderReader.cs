@@ -180,18 +180,23 @@ internal class FolderReader
 
     private ReadOnlySpan<char> GetCommonName(string name1, string name2)
     {
-        var maxLength = Math.Min(name1.Length, name2.Length);
-        if (maxLength <= _minNameLength)
-            return ReadOnlySpan<char>.Empty;
+        var minLength = Math.Min(name1.Length, name2.Length);
+        for (int i = 1; i < minLength; i += 3)
+        {
+            var newLength = minLength - i;
+            if (newLength <= _minNameLength)
+                break;
 
-        var length = 0;
-        while (length < maxLength && name1[length] == name2[length])
-            length++;
+            var span1 = name1.AsSpan(0, newLength);
+            var span2 = name2.AsSpan(0, newLength);
 
-        if (length <= _minNameLength)
-            return ReadOnlySpan<char>.Empty;
-
-        return name1.AsSpan(0, length).TrimEnd();
+            if (span1.SequenceEqual(span2))
+            {
+                var cut = newLength - 2;
+                return name1.AsSpan(0, cut < 0 ? 0 : cut).TrimEnd();
+            }
+        }
+        return ReadOnlySpan<char>.Empty;
     }
 
     private FileInfo[] GetFilesFromDir(DirectoryInfo dir)
