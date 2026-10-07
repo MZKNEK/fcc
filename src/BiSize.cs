@@ -72,18 +72,42 @@ internal class BiSize
     public static string AverageString(BiSize total, long count)
         => count <= 0 ? total.ToString() : SmartString((decimal)total.ToBytes() / count);
 
-    private static string SmartString(decimal bytes)
+    /// <summary>
+    /// Splits a byte amount into a numeric value and its unit. When
+    /// <paramref name="forced"/> is null the most fitting unit is picked.
+    /// </summary>
+    public static (string Value, Kind Unit) FormatBytes(double bytes, Kind? forced)
+    {
+        var (value, unit) = Split((decimal)bytes, forced);
+        return (value.ToString("F"), unit);
+    }
+
+    private static (decimal Value, Kind Unit) Split(decimal bytes, Kind? forced)
     {
         var type = Kind.Bytes;
         var value = bytes;
 
-        while (value >= Kibi && type < Kind.PiB)
+        if (forced is { } unit)
         {
-            value /= Kibi;
-            type = (Kind)((long)type * Kibi);
+            type = unit;
+            value = bytes / (long)unit;
+        }
+        else
+        {
+            while (value >= Kibi && type < Kind.PiB)
+            {
+                value /= Kibi;
+                type = (Kind)((long)type * Kibi);
+            }
         }
 
-        return $"{value.ToString("F")} {type}";
+        return (value, type);
+    }
+
+    private static string SmartString(decimal bytes)
+    {
+        var (value, unit) = Split(bytes, null);
+        return $"{value.ToString("F")} {unit}";
     }
 
     private BiSize(BiSize size)

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -5,6 +6,18 @@ namespace FCC;
 
 internal sealed class MainForm : Form
 {
+    private static readonly string[] ColumnNames = { "Name", "Count", "Size", "Unit" };
+
+    private static readonly (string Label, BiSize.Kind? Unit)[] SizeUnits =
+    {
+        ("Auto", null),
+        ("Bytes", BiSize.Kind.Bytes),
+        ("KiB", BiSize.Kind.KiB),
+        ("MiB", BiSize.Kind.MiB),
+        ("GiB", BiSize.Kind.GiB),
+        ("TiB", BiSize.Kind.TiB),
+    };
+
     private readonly TextBox _path;
     private readonly Button _browse;
     private readonly CheckBox _hidden;
@@ -25,9 +38,13 @@ internal sealed class MainForm : Form
 
     private FolderReader.Output _lastOutput;
 
+    private int _sortColumn = -1;
+    private bool _sortAscending = true;
+    private BiSize.Kind? _sizeUnit;
+
     internal MainForm()
     {
-        Text = "FCC";
+        Text = $"FCC {FCC.Version}";
         ClientSize = new Size(750, 570);
         MinimumSize = new Size(640, 460);
         StartPosition = FormStartPosition.CenterScreen;
@@ -35,26 +52,55 @@ internal sealed class MainForm : Form
 
         _lastOutput = new FolderReader.Output();
 
+        // --- menu ----------------------------------------------------------
+        var menu = new MenuStrip();
+        var viewMenu = new ToolStripMenuItem("View");
+        var unitMenu = new ToolStripMenuItem("Size unit");
+
+        foreach (var (label, unit) in SizeUnits)
+        {
+            var item = new ToolStripMenuItem(label) { Tag = unit, Checked = unit is null };
+            item.Click += (s, _) =>
+            {
+                _sizeUnit = (BiSize.Kind?)((ToolStripMenuItem)s!).Tag;
+
+                foreach (ToolStripMenuItem other in unitMenu.DropDownItems)
+                    other.Checked = other.Tag is BiSize.Kind kind ? _sizeUnit == kind : _sizeUnit is null;
+
+                RefreshEntries();
+            };
+            unitMenu.DropDownItems.Add(item);
+        }
+
+        viewMenu.DropDownItems.Add(unitMenu);
+        menu.Items.Add(viewMenu);
+        MainMenuStrip = menu;
+
         // --- directory row -------------------------------------------------
         var dirLabel = new Label
         {
             Text = "Directory:",
             AutoSize = true,
-            Location = new Point(12, 15)
+            Location = new Point(12, 43)
         };
 
         _path = new TextBox
         {
-            Location = new Point(80, 12),
+            Location = new Point(80, 40),
             Width = 560,
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Text = Directory.GetCurrentDirectory()
         };
 
+        var pathMenu = new ContextMenuStrip();
+        pathMenu.Items.Add("Open in Explorer", null, (_, _) => OpenInExplorer());
+        pathMenu.Items.Add("Copy path", null, (_, _) => CopyPath());
+        _path.ContextMenuStrip = pathMenu;
+
         _browse = new Button
         {
             Text = "...",
-            Location = new Point(648, 11),
+            Location = new Point(648, 39),
             Width = 90,
             Anchor = AnchorStyles.Top | AnchorStyles.Right
         };
@@ -64,7 +110,7 @@ internal sealed class MainForm : Form
         var options = new GroupBox
         {
             Text = "Options",
-            Location = new Point(12, 48),
+            Location = new Point(12, 76),
             Size = new Size(726, 120),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
@@ -99,7 +145,7 @@ internal sealed class MainForm : Form
         var filters = new GroupBox
         {
             Text = "Group filters",
-            Location = new Point(12, 176),
+            Location = new Point(12, 204),
             Size = new Size(726, 60),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
         };
@@ -120,10 +166,10 @@ internal sealed class MainForm : Form
         });
 
         // --- actions -------------------------------------------------------
-        _run = new Button { Text = "Run", Location = new Point(12, 246), Width = 100 };
+        _run = new Button { Text = "Run", Location = new Point(12, 274), Width = 100 };
         _run.Click += (_, _) => Run();
 
-        _save = new Button { Text = "Save output...", Location = new Point(120, 246), Width = 130, Enabled = false };
+        _save = new Button { Text = "Save output...", Location = new Point(120, 274), Width = 130, Enabled = false };
         _save.Click += (_, _) => SaveOutput();
 
         // --- results -------------------------------------------------------
@@ -134,13 +180,35 @@ internal sealed class MainForm : Form
             GridLines = true,
             MultiSelect = true,
             HideSelection = false,
-            Location = new Point(12, 282),
-            Size = new Size(726, 250),
+            Location = new Point(12, 310),
+            Size = new Size(726, 220),
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
-        _list.Columns.Add("Name", 520);
-        _list.Columns.Add("Count", 90);
-        _list.Columns.Add("Size", 110);
+
+        var widths = new[] { 440, 80, 110, 80 };
+        for (var i = 0; i < ColumnNames.Length; i++)
+            _list.Columns.Add(ColumnNames[i], widths[i]);
+
+        _list.ColumnClick += (_, e) =>
+        {
+            if (e.Column == _sortColumn)
+                _sortAscending = !_sortAscending;
+            else
+            {
+                _sortColumn = e.Column;
+                _sortAscending = true;
+            }
+
+            ApplySort();
+        };
+
+        var listMenu = new ContextMenuStrip();
+        listMenu.Items.Add("Open in Explorer", null, (_, _) => OpenEntryInExplorer());
+        listMenu.Items.Add("Open", null, (_, _) => OpenEntry());
+        listMenu.Items.Add("Copy path", null, (_, _) => CopyEntryPath());
+        listMenu.Opening += (_, _) => UpdateEntryMenu(listMenu);
+        _list.ContextMenuStrip = listMenu;
+        _list.DoubleClick += (_, _) => OpenEntryInExplorer();
 
         _status = new ToolStripStatusLabel
         {
@@ -156,7 +224,7 @@ internal sealed class MainForm : Form
 
         Controls.AddRange(new Control[]
         {
-            dirLabel, _path, _browse, options, filters, _run, _save, _list, status
+            menu, dirLabel, _path, _browse, options, filters, _run, _save, _list, status
         });
     }
 
@@ -197,10 +265,9 @@ internal sealed class MainForm : Form
         {
             var max = _lessEnabled.Checked ? (uint)_less.Value : (uint?)null;
             var reader = new FolderReader(dir, BuildFlags(), (uint)_min.Value, max, (uint)_more.Value);
-            var output = reader.Analyze();
 
-            _lastOutput = output;
-            ShowEntries(output);
+            _lastOutput = reader.Analyze();
+            RefreshEntries();
             _save.Enabled = true;
         }
         catch (UnauthorizedAccessException)
@@ -210,27 +277,152 @@ internal sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "FCC",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ShowError(ex);
         }
     }
 
-    private void ShowEntries(FolderReader.Output output)
+    private void RefreshEntries()
     {
         _list.BeginUpdate();
         _list.Items.Clear();
 
-        foreach (var entry in output.Entries)
+        foreach (var entry in _lastOutput.Entries)
         {
-            var name = entry.Directory is null ? entry.Name : $"{entry.Directory}/{entry.Name}";
-            var item = new ListViewItem(name);
-            item.SubItems.Add(entry.Count is null ? string.Empty : $"x{entry.Count}");
-            item.SubItems.Add(entry.Size ?? string.Empty);
+            var item = new ListViewItem(DisplayName(entry)) { Tag = entry };
+            item.SubItems.Add(entry.Count?.ToString() ?? string.Empty);
+
+            if (entry.Size is null)
+            {
+                item.SubItems.Add(string.Empty);
+                item.SubItems.Add(string.Empty);
+            }
+            else
+            {
+                var (value, unit) = BiSize.FormatBytes(entry.SizeBytes, _sizeUnit);
+                item.SubItems.Add(value);
+                item.SubItems.Add(unit.ToString());
+            }
+
             _list.Items.Add(item);
         }
 
         _list.EndUpdate();
-        _status.Text = $"TOTAL: {output.Stats.Summary(!_verbose.Checked)}";
+        _status.Text = $"TOTAL: {_lastOutput.Stats.Summary(!_verbose.Checked)}";
+
+        if (_sortColumn >= 0)
+            ApplySort();
+    }
+
+    private void ApplySort()
+    {
+        _list.ListViewItemSorter = new EntryComparer(_sortColumn, _sortAscending);
+
+        for (var i = 0; i < _list.Columns.Count; i++)
+        {
+            var text = ColumnNames[i];
+            if (i == _sortColumn)
+                text += _sortAscending ? " \u25B2" : " \u25BC";
+            _list.Columns[i].Text = text;
+        }
+
+        _list.Sort();
+    }
+
+    private void OpenInExplorer()
+    {
+        var path = _path.Text;
+        if (!Directory.Exists(path))
+        {
+            MessageBox.Show(this, "Directory does not exist.", "FCC",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex);
+        }
+    }
+
+    private void CopyPath()
+    {
+        if (_path.TextLength > 0)
+            Clipboard.SetText(_path.Text);
+    }
+
+    private bool TryGetSelectedEntry(out FolderReader.Entry entry)
+    {
+        if (_list.SelectedItems.Count > 0 && _list.SelectedItems[0].Tag is FolderReader.Entry selected)
+        {
+            entry = selected;
+            return true;
+        }
+
+        entry = default;
+        return false;
+    }
+
+    private void UpdateEntryMenu(ContextMenuStrip menu)
+    {
+        var hasEntry = _list.SelectedItems.Count > 0 && _list.SelectedItems[0].Tag is FolderReader.Entry;
+
+        foreach (ToolStripItem item in menu.Items)
+            item.Enabled = hasEntry;
+    }
+
+    private void OpenEntryInExplorer()
+    {
+        if (!TryGetSelectedEntry(out var entry))
+            return;
+
+        try
+        {
+            if (entry.OpenPath is { } path && File.Exists(path))
+                Process.Start("explorer.exe", $"/select,\"{path}\"");
+            else if (entry.FullDirectory is not null)
+                Process.Start(new ProcessStartInfo { FileName = entry.FullDirectory, UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex);
+        }
+    }
+
+    private void OpenEntry()
+    {
+        if (!TryGetSelectedEntry(out var entry))
+            return;
+
+        // A group entry opens its first file in the default program.
+        if (entry.OpenPath is { } path && File.Exists(path))
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                ShowError(ex);
+            }
+        }
+        else
+        {
+            OpenEntryInExplorer();
+        }
+    }
+
+    private void CopyEntryPath()
+    {
+        if (!TryGetSelectedEntry(out var entry))
+            return;
+
+        var path = entry.OpenPath ?? entry.FullDirectory;
+        if (path is not null)
+            Clipboard.SetText(path);
     }
 
     private void SaveOutput()
@@ -250,8 +442,46 @@ internal sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, ex.Message, "FCC",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ShowError(ex);
+        }
+    }
+
+    private void ShowError(Exception ex)
+        => MessageBox.Show(this, ex.Message, "FCC", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+    private static string DisplayName(FolderReader.Entry entry)
+        => entry.Directory is null ? entry.Name : $"{entry.Directory}/{entry.Name}";
+
+    private static string UnitName(FolderReader.Entry entry)
+        => entry.Size is null ? string.Empty : BiSize.FormatBytes(entry.SizeBytes, null).Unit.ToString();
+
+    private sealed class EntryComparer : System.Collections.IComparer
+    {
+        private readonly int _column;
+        private readonly bool _ascending;
+
+        internal EntryComparer(int column, bool ascending)
+        {
+            _column = column;
+            _ascending = ascending;
+        }
+
+        public int Compare(object? x, object? y)
+        {
+            if (x is not ListViewItem a || y is not ListViewItem b ||
+                a.Tag is not FolderReader.Entry ea || b.Tag is not FolderReader.Entry eb)
+                return 0;
+
+            var result = _column switch
+            {
+                0 => string.Compare(DisplayName(ea), DisplayName(eb), StringComparison.OrdinalIgnoreCase),
+                1 => Nullable.Compare(ea.Count, eb.Count),
+                2 => ea.SizeBytes.CompareTo(eb.SizeBytes),
+                3 => string.Compare(UnitName(ea), UnitName(eb), StringComparison.Ordinal),
+                _ => 0
+            };
+
+            return _ascending ? result : -result;
         }
     }
 }

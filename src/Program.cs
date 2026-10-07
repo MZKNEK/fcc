@@ -8,6 +8,8 @@ public class FCC
 {
     private static readonly string _version =
         typeof(FCC).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+
+    internal static string Version => _version;
     private static readonly StringBuilder _header = new StringBuilder()
         .AppendLine($"FCC # {_version}")
         .AppendLine("-----------------------------");

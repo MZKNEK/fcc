@@ -76,7 +76,7 @@ internal class FolderReader
                 : $"{Files} FILES | {Size}";
     }
 
-    internal readonly record struct Entry(string? Directory, string Name, int? Count, string? Size);
+    internal readonly record struct Entry(string? Directory, string? FullDirectory, string Name, string? OpenPath, int? Count, string? Size, double SizeBytes);
 
     internal struct Output
     {
@@ -128,17 +128,36 @@ internal class FolderReader
 
     private string Pastelize(string s, string f) => s.Pastel(f).PastelBg(_colors.B_COLOR);
 
-    private void ProcessAndAddName(ref Output o, DirectoryInfo? dir, ReadOnlySpan<char> fileName, int? count = null,
-        BiSize? size = null, bool avgSize = false) => ProcessAndAddName(ref o, dir, fileName.ToString(), count, size, avgSize);
+    private void ProcessAndAddName(ref Output o, DirectoryInfo? dir, bool showDirName, ReadOnlySpan<char> fileName,
+        string? openFileName, int? count = null, BiSize? size = null, bool avgSize = false)
+        => ProcessAndAddName(ref o, dir, showDirName, fileName.ToString(), openFileName, count, size, avgSize);
 
-    private void ProcessAndAddName(ref Output o, DirectoryInfo? dir, string fileName, int? count = null,
-        BiSize? size = null, bool avgSize = false)
+    private void ProcessAndAddName(ref Output o, DirectoryInfo? dir, bool showDirName, string fileName,
+        string? openFileName, int? count = null, BiSize? size = null, bool avgSize = false)
     {
-        var sizeText = size is null
-            ? null
-            : (avgSize ? BiSize.AverageString(size, count ?? 0) : size.ToString());
+        string? sizeText = null;
+        var sizeBytes = 0d;
 
-        var entry = new Entry(dir?.Name, fileName, count, sizeText);
+        if (size is not null)
+        {
+            var totalBytes = size.ToBytes();
+            if (avgSize && count is > 0)
+            {
+                sizeText = BiSize.AverageString(size, count.Value);
+                sizeBytes = (double)totalBytes / count.Value;
+            }
+            else
+            {
+                sizeText = size.ToString();
+                sizeBytes = totalBytes;
+            }
+        }
+
+        var openPath = dir is not null && openFileName is not null
+            ? Path.Combine(dir.FullName, openFileName)
+            : null;
+
+        var entry = new Entry(showDirName ? dir?.Name : null, dir?.FullName, fileName, openPath, count, sizeText, sizeBytes);
         o.Entries.Add(entry);
         AppendEntryLine(ref o, entry);
     }
@@ -201,7 +220,7 @@ internal class FolderReader
             foreach (var file in files)
             {
                 o.Stats.Size.AddBytes(file.Length);
-                ProcessAndAddName(ref o, addDirName ? dir : null, file.Name, null,
+                ProcessAndAddName(ref o, dir, addDirName, file.Name, file.Name, null,
                     addSize ? BiSize.FromBytes(file.Length) : null);
             }
             return;
@@ -215,6 +234,7 @@ internal class FolderReader
     {
         var nameToAdd = ReadOnlySpan<char>.Empty;
         var size = BiSize.FromBytes(0);
+        var firstInGroup = string.Empty;
 
         for (int i = 0, inGroupCnt = 0; i < files.Length; i++)
         {
@@ -231,7 +251,7 @@ internal class FolderReader
                     lastElement = true;
                 }
 
-                AddEntry(inGroupCnt, avgSize, addSize, nameToAdd, addDirName ? files[i].Directory : null, size, ref o);
+                AddEntry(inGroupCnt, avgSize, addSize, addDirName, nameToAdd, firstInGroup, files[i].Directory, size, ref o);
 
                 if (lastElement)
                     continue;
@@ -239,6 +259,7 @@ internal class FolderReader
 
             inGroupCnt = 1;
             size = BiSize.FromBytes(files[i].Length);
+            firstInGroup = files[i].Name;
             nameToAdd = ReadOnlySpan<char>.Empty;
 
             if (files.Length > i + 1)
@@ -247,20 +268,20 @@ internal class FolderReader
             if (nameToAdd.IsEmpty)
             {
                 inGroupCnt = 0;
-                AddEntry(1, avgSize, addSize, files[i].Name, addDirName ? files[i].Directory : null, size, ref o);
+                AddEntry(1, avgSize, addSize, addDirName, files[i].Name, files[i].Name, files[i].Directory, size, ref o);
             }
         }
     }
 
-    private void AddEntry(int inGroupCnt, bool avgSize, bool addSize,
-        ReadOnlySpan<char> nameToAdd, DirectoryInfo? dir, BiSize size, ref Output o)
+    private void AddEntry(int inGroupCnt, bool avgSize, bool addSize, bool showDirName,
+        ReadOnlySpan<char> nameToAdd, string firstFileName, DirectoryInfo? dir, BiSize size, ref Output o)
     {
         if (ShouldAddGroup(inGroupCnt))
         {
             o.Stats.Groups++;
             o.Stats.Files += inGroupCnt;
             o.Stats.Size.AddBytes(size.ToBytes());
-            ProcessAndAddName(ref o, dir, nameToAdd, inGroupCnt, addSize ? size : null, avgSize);
+            ProcessAndAddName(ref o, dir, showDirName, nameToAdd, firstFileName, inGroupCnt, addSize ? size : null, avgSize);
         }
     }
 

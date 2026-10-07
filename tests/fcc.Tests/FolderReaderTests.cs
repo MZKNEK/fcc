@@ -213,10 +213,15 @@ public sealed class FolderReaderTests : IDisposable
         var group = output.Entries.Single(e => e.Name == Prefix);
         Assert.Equal(3, group.Count);
         Assert.Equal("4.67 Bytes", group.Size);
+        Assert.Equal(14.0 / 3, group.SizeBytes, 3);
         Assert.Null(group.Directory);
+        Assert.Equal(new DirectoryInfo(_root).FullName, group.FullDirectory);
+        Assert.Equal(Path.Combine(_root, Prefix + "1.txt"), group.OpenPath);
 
         var solo = output.Entries.Single(e => e.Name == "solo.txt");
         Assert.Equal(1, solo.Count);
+        Assert.Equal(1d, solo.SizeBytes);
+        Assert.Equal(Path.Combine(_root, "solo.txt"), solo.OpenPath);
     }
 
     [Fact]
@@ -231,6 +236,7 @@ public sealed class FolderReaderTests : IDisposable
 
         var nested = output.Entries.Single(e => e.Name == "nested.txt");
         Assert.Equal("sub", nested.Directory);
+        Assert.Equal(sub.FullName, nested.FullDirectory);
     }
 
     [Fact]
