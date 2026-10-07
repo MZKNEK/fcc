@@ -6,8 +6,6 @@ namespace FCC;
 
 internal sealed class MainForm : Form
 {
-    private static readonly string[] ColumnNames = { "Name", "Count", "Size", "Unit" };
-
     private static readonly (string Label, BiSize.Kind? Unit)[] SizeUnits =
     {
         ("Auto", null),
@@ -36,10 +34,13 @@ internal sealed class MainForm : Form
     private readonly ListView _list;
     private readonly ToolStripStatusLabel _status;
 
+    private readonly List<string> _columnNames = new();
+
     private FolderReader.Output _lastOutput;
 
     private int _sortColumn = -1;
     private bool _sortAscending = true;
+    private bool _hasDirColumn;
     private BiSize.Kind? _sizeUnit;
 
     internal MainForm()
@@ -118,8 +119,8 @@ internal sealed class MainForm : Form
         _hidden = new CheckBox { Text = "Include hidden (-a)", Location = new Point(12, 24), AutoSize = true };
         _recursive = new CheckBox { Text = "Recursive (-r)", Location = new Point(12, 50), AutoSize = true };
         _dirNames = new CheckBox { Text = "Subdir names (-d, needs -r)", Location = new Point(12, 76), AutoSize = true, Enabled = false };
-        _groupSize = new CheckBox { Text = "Group size (-s)", Location = new Point(260, 24), AutoSize = true };
-        _avgSize = new CheckBox { Text = "Average size (-g, needs -s)", Location = new Point(260, 50), AutoSize = true, Enabled = false };
+        _groupSize = new CheckBox { Text = "Group size (-s)", Location = new Point(260, 24), AutoSize = true, Checked = true };
+        _avgSize = new CheckBox { Text = "Average size (-g, needs -s)", Location = new Point(260, 50), AutoSize = true, Checked = true };
         _verbose = new CheckBox { Text = "Verbose (-v)", Location = new Point(260, 76), AutoSize = true };
         _random = new CheckBox { Text = "Random entry (--rand)", Location = new Point(520, 24), AutoSize = true };
 
@@ -135,6 +136,7 @@ internal sealed class MainForm : Form
             if (!_groupSize.Checked)
                 _avgSize.Checked = false;
         };
+        _dirNames.CheckedChanged += (_, _) => RefreshEntries();
 
         options.Controls.AddRange(new Control[]
         {
@@ -185,10 +187,6 @@ internal sealed class MainForm : Form
             Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
 
-        var widths = new[] { 440, 80, 110, 80 };
-        for (var i = 0; i < ColumnNames.Length; i++)
-            _list.Columns.Add(ColumnNames[i], widths[i]);
-
         _list.ColumnClick += (_, e) =>
         {
             if (e.Column == _sortColumn)
@@ -226,6 +224,37 @@ internal sealed class MainForm : Form
         {
             menu, dirLabel, _path, _browse, options, filters, _run, _save, _list, status
         });
+
+        EnsureColumns();
+    }
+
+    private void EnsureColumns()
+    {
+        var wantDir = _dirNames.Checked;
+
+        if (_columnNames.Count > 0 && wantDir == _hasDirColumn)
+            return;
+
+        _hasDirColumn = wantDir;
+        _sortColumn = -1;
+        _columnNames.Clear();
+        _list.Columns.Clear();
+
+        if (wantDir)
+        {
+            _columnNames.Add("Dir");
+            _list.Columns.Add("Dir", 170);
+        }
+
+        _columnNames.Add("Name");
+        _columnNames.Add("Count");
+        _columnNames.Add("Size");
+        _columnNames.Add("Unit");
+
+        _list.Columns.Add("Name", wantDir ? 300 : 440);
+        _list.Columns.Add("Count", 80);
+        _list.Columns.Add("Size", 110);
+        _list.Columns.Add("Unit", 80);
     }
 
     private void Browse()
@@ -283,25 +312,36 @@ internal sealed class MainForm : Form
 
     private void RefreshEntries()
     {
+        EnsureColumns();
+
         _list.BeginUpdate();
         _list.Items.Clear();
 
         foreach (var entry in _lastOutput.Entries)
         {
-            var item = new ListViewItem(DisplayName(entry)) { Tag = entry };
-            item.SubItems.Add(entry.Count?.ToString() ?? string.Empty);
+            var values = new List<string>();
+
+            if (_hasDirColumn)
+                values.Add(entry.Directory ?? string.Empty);
+
+            values.Add(entry.Name);
+            values.Add(entry.Count?.ToString() ?? string.Empty);
 
             if (entry.Size is null)
             {
-                item.SubItems.Add(string.Empty);
-                item.SubItems.Add(string.Empty);
+                values.Add(string.Empty);
+                values.Add(string.Empty);
             }
             else
             {
                 var (value, unit) = BiSize.FormatBytes(entry.SizeBytes, _sizeUnit);
-                item.SubItems.Add(value);
-                item.SubItems.Add(unit.ToString());
+                values.Add(value);
+                values.Add(unit.ToString());
             }
+
+            var item = new ListViewItem(values[0]) { Tag = entry };
+            for (var i = 1; i < values.Count; i++)
+                item.SubItems.Add(values[i]);
 
             _list.Items.Add(item);
         }
@@ -315,11 +355,11 @@ internal sealed class MainForm : Form
 
     private void ApplySort()
     {
-        _list.ListViewItemSorter = new EntryComparer(_sortColumn, _sortAscending);
+        _list.ListViewItemSorter = new EntryComparer(_sortColumn, _sortAscending, _hasDirColumn);
 
-        for (var i = 0; i < _list.Columns.Count; i++)
+        for (var i = 0; i < _list.Columns.Count && i < _columnNames.Count; i++)
         {
-            var text = ColumnNames[i];
+            var text = _columnNames[i];
             if (i == _sortColumn)
                 text += _sortAscending ? " \u25B2" : " \u25BC";
             _list.Columns[i].Text = text;
@@ -449,21 +489,17 @@ internal sealed class MainForm : Form
     private void ShowError(Exception ex)
         => MessageBox.Show(this, ex.Message, "FCC", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
-    private static string DisplayName(FolderReader.Entry entry)
-        => entry.Directory is null ? entry.Name : $"{entry.Directory}/{entry.Name}";
-
-    private static string UnitName(FolderReader.Entry entry)
-        => entry.Size is null ? string.Empty : BiSize.FormatBytes(entry.SizeBytes, null).Unit.ToString();
-
     private sealed class EntryComparer : System.Collections.IComparer
     {
         private readonly int _column;
         private readonly bool _ascending;
+        private readonly bool _hasDir;
 
-        internal EntryComparer(int column, bool ascending)
+        internal EntryComparer(int column, bool ascending, bool hasDir)
         {
             _column = column;
             _ascending = ascending;
+            _hasDir = hasDir;
         }
 
         public int Compare(object? x, object? y)
@@ -472,16 +508,31 @@ internal sealed class MainForm : Form
                 a.Tag is not FolderReader.Entry ea || b.Tag is not FolderReader.Entry eb)
                 return 0;
 
-            var result = _column switch
-            {
-                0 => string.Compare(DisplayName(ea), DisplayName(eb), StringComparison.OrdinalIgnoreCase),
-                1 => Nullable.Compare(ea.Count, eb.Count),
-                2 => ea.SizeBytes.CompareTo(eb.SizeBytes),
-                3 => string.Compare(UnitName(ea), UnitName(eb), StringComparison.Ordinal),
-                _ => 0
-            };
+            var dirColumn = _hasDir ? 0 : -1;
+            var nameColumn = _hasDir ? 1 : 0;
+            var countColumn = _hasDir ? 2 : 1;
+            var sizeColumn = _hasDir ? 3 : 2;
+            var unitColumn = _hasDir ? 4 : 3;
+
+            int result;
+
+            if (_column == dirColumn)
+                result = string.Compare(ea.Directory, eb.Directory, StringComparison.OrdinalIgnoreCase);
+            else if (_column == nameColumn)
+                result = string.Compare(ea.Name, eb.Name, StringComparison.OrdinalIgnoreCase);
+            else if (_column == countColumn)
+                result = Nullable.Compare(ea.Count, eb.Count);
+            else if (_column == sizeColumn)
+                result = ea.SizeBytes.CompareTo(eb.SizeBytes);
+            else if (_column == unitColumn)
+                result = string.Compare(UnitName(ea), UnitName(eb), StringComparison.Ordinal);
+            else
+                result = 0;
 
             return _ascending ? result : -result;
         }
+
+        private static string UnitName(FolderReader.Entry entry)
+            => entry.Size is null ? string.Empty : BiSize.FormatBytes(entry.SizeBytes, null).Unit.ToString();
     }
 }
