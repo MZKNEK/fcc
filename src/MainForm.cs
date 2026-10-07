@@ -32,7 +32,9 @@ internal sealed class MainForm : Form
     private readonly Button _run;
     private readonly Button _save;
     private readonly ListView _list;
-    private readonly ToolStripStatusLabel _status;
+    private readonly ToolStripStatusLabel _statusFiles;
+    private readonly ToolStripStatusLabel _statusGroups;
+    private readonly ToolStripStatusLabel _statusSize;
 
     private readonly List<string> _columnNames = new();
 
@@ -208,15 +210,43 @@ internal sealed class MainForm : Form
         _list.ContextMenuStrip = listMenu;
         _list.DoubleClick += (_, _) => OpenEntryInExplorer();
 
-        _status = new ToolStripStatusLabel
+        var totalLabel = new ToolStripStatusLabel("TOTAL")
         {
-            Text = "Ready",
-            Spring = true,
-            TextAlign = ContentAlignment.MiddleLeft
+            Font = new Font(Font, FontStyle.Bold),
+            ForeColor = SystemColors.GrayText,
+            Margin = new Padding(6, 0, 10, 0)
         };
 
-        var status = new StatusStrip { Dock = DockStyle.Bottom };
-        status.Items.Add(_status);
+        _statusFiles = new ToolStripStatusLabel("0 files")
+        {
+            BorderSides = ToolStripStatusLabelBorderSides.Right,
+            BorderStyle = Border3DStyle.Etched,
+            Padding = new Padding(0, 0, 12, 0),
+            Margin = new Padding(0, 0, 12, 0)
+        };
+
+        _statusGroups = new ToolStripStatusLabel("0 groups")
+        {
+            BorderSides = ToolStripStatusLabelBorderSides.Right,
+            BorderStyle = Border3DStyle.Etched,
+            Padding = new Padding(0, 0, 12, 0),
+            Margin = new Padding(0, 0, 12, 0)
+        };
+
+        _statusSize = new ToolStripStatusLabel("0 B")
+        {
+            Font = new Font(Font, FontStyle.Bold),
+            Margin = new Padding(0, 0, 6, 0)
+        };
+
+        var spring = new ToolStripStatusLabel { Spring = true };
+
+        var status = new StatusStrip { Dock = DockStyle.Bottom, SizingGrip = false };
+        status.Items.Add(totalLabel);
+        status.Items.Add(_statusFiles);
+        status.Items.Add(_statusGroups);
+        status.Items.Add(spring);
+        status.Items.Add(_statusSize);
 
         AcceptButton = _run;
 
@@ -347,10 +377,20 @@ internal sealed class MainForm : Form
         }
 
         _list.EndUpdate();
-        _status.Text = $"TOTAL: {_lastOutput.Stats.Summary(!_verbose.Checked)}";
+        SetStatus();
 
         if (_sortColumn >= 0)
             ApplySort();
+    }
+
+    private void SetStatus()
+    {
+        var stats = _lastOutput.Stats;
+
+        _statusFiles.Text = $"{stats.Files} files";
+        _statusGroups.Text = $"{stats.Groups} groups";
+        _statusGroups.Visible = !_verbose.Checked;
+        _statusSize.Text = stats.Size.ToString();
     }
 
     private void ApplySort()

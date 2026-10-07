@@ -10,7 +10,7 @@
     <PublishReadyToRun>true</PublishReadyToRun>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Version>1.0.8</Version>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
