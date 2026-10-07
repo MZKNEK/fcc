@@ -116,4 +116,4 @@ dotnet publish src/fcc.csproj -c Release -r win-x64 -p:PublishSingleFile=true
 
 ## License
 
-Released under the [MIT License](LICENSE). Copyright (c) 2023 Sniku.
+Released under the [MIT License](LICENSE). Copyright (c) 2023-2026 Sniku.
