@@ -2,15 +2,8 @@
 
 [![CodeFactor](https://www.codefactor.io/repository/github/mzknek/fcc/badge)](https://www.codefactor.io/repository/github/mzknek/fcc)
 
-Small console program for parsing directory content.
-
-## Usage example
-
-![fcc](./e_fcc.png)
-
-Directory content:
-
-![ls](./e_ls.png)
+Console tool with an optional graphical interface for inspecting, grouping and
+sizing the contents of a directory.
 
 ## Usage
 
@@ -93,6 +86,8 @@ Colors are enabled with `-c` and can be customized through environment variables
 
 ## Build and test
 
+Requires the .NET 8 SDK. The GUI uses WinForms, so the app targets Windows.
+
 ```sh
 dotnet build src/fcc.csproj
 dotnet test tests/fcc.Tests/fcc.Tests.csproj
@@ -104,6 +99,12 @@ Publish a self-contained `win-x64` binary:
 dotnet publish src/fcc.csproj
 ```
 
+Publish a single-file executable (as used by the release workflow):
+
+```sh
+dotnet publish src/fcc.csproj -c Release -r win-x64 -p:PublishSingleFile=true
+```
+
 ## Exit codes
 
 | Code | Meaning |
@@ -112,3 +113,7 @@ dotnet publish src/fcc.csproj
 | 1 | invalid arguments |
 | 2 | insufficient permissions while reading |
 | 3 | output could not be saved / I/O error |
+
+## License
+
+Released under the [MIT License](LICENSE). Copyright (c) 2023 Sniku.
